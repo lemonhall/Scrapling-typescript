@@ -1,6 +1,18 @@
 import { parseHTML } from "linkedom";
 
+import { AttributesHandler, TextHandler } from "./handlers.js";
+
 type SelectorRoot = Document | Element;
+
+interface TextMatchOptions {
+  partial?: boolean;
+  firstMatch?: boolean;
+  caseSensitive?: boolean;
+}
+
+interface RegexMatchOptions {
+  firstMatch?: boolean;
+}
 
 export interface SelectorOptions {
   url?: string;
@@ -42,6 +54,25 @@ function collectDirectText(node: SelectorRoot): string {
   return normalizeWhitespace(text);
 }
 
+function createSelector(node: Element, source: Selector): Selector {
+  return new Selector(node, { url: source.url, adaptive: source.adaptive });
+}
+
+function getSearchPool(node: SelectorRoot): Element[] {
+  if (isElementNode(node)) {
+    return [node, ...Array.from(node.querySelectorAll("*"))];
+  }
+
+  return Array.from(node.querySelectorAll("*"));
+}
+
+function matchesText(value: string, query: string, options: TextMatchOptions): boolean {
+  const haystack = options.caseSensitive ? value : value.toLowerCase();
+  const needle = options.caseSensitive ? query : query.toLowerCase();
+
+  return options.partial ? haystack.includes(needle) : haystack === needle;
+}
+
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
@@ -68,6 +99,30 @@ export class Selector {
     );
   }
 
+  findByText(query: string, options: TextMatchOptions = {}): Selector | Selector[] | null {
+    const matches = getSearchPool(this.#node)
+      .map((element) => createSelector(element, this))
+      .filter((selector) => matchesText(selector.text, query, options));
+
+    if (options.firstMatch === false) {
+      return matches;
+    }
+
+    return matches[0] ?? null;
+  }
+
+  findByRegex(pattern: RegExp, options: RegexMatchOptions = {}): Selector | Selector[] | null {
+    const matches = getSearchPool(this.#node)
+      .map((element) => createSelector(element, this))
+      .filter((selector) => pattern.test(selector.text));
+
+    if (options.firstMatch === false) {
+      return matches;
+    }
+
+    return matches[0] ?? null;
+  }
+
   get tag(): string | null {
     return isElementNode(this.#node) ? this.#node.tagName.toLowerCase() : null;
   }
@@ -84,6 +139,62 @@ export class Selector {
     const element = this.#node;
     const pairs = element.getAttributeNames().map((name) => [name, element.getAttribute(name) ?? ""]);
     return Object.freeze(Object.fromEntries(pairs));
+  }
+
+  get attrib(): AttributesHandler {
+    return new AttributesHandler({ ...this.attributes });
+  }
+
+  get textHandler(): TextHandler {
+    return new TextHandler(this.text);
+  }
+
+  get parent(): Selector | null {
+    if (!isElementNode(this.#node) || this.#node.parentElement == null) {
+      return null;
+    }
+
+    return createSelector(this.#node.parentElement, this);
+  }
+
+  get children(): Selector[] {
+    if (!isElementNode(this.#node)) {
+      return [];
+    }
+
+    return Array.from(this.#node.children).map((element) => createSelector(element, this));
+  }
+
+  get next(): Selector | null {
+    if (!isElementNode(this.#node) || this.#node.nextElementSibling == null) {
+      return null;
+    }
+
+    return createSelector(this.#node.nextElementSibling, this);
+  }
+
+  get previous(): Selector | null {
+    if (!isElementNode(this.#node) || this.#node.previousElementSibling == null) {
+      return null;
+    }
+
+    return createSelector(this.#node.previousElementSibling, this);
+  }
+
+  get ancestors(): Selector[] {
+    if (!isElementNode(this.#node)) {
+      return [];
+    }
+
+    const ancestors: Selector[] = [];
+    let current = this.#node.parentElement;
+
+    while (current != null) {
+      ancestors.push(createSelector(current, this));
+      current = current.parentElement;
+    }
+
+    return ancestors;
   }
 
   get htmlContent(): string {

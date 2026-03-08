@@ -24,6 +24,13 @@
 - 建立运行时能力描述：显式区分 Node 与 Chrome 插件能力边界
 - 落下第一个 parser baseline：`Selector` 支持 HTML 构建、CSS 查询、属性读取、文本读取与 HTML 输出
 
+正在推进的第二个 slice：
+
+- `Selector` 的文本查找与正则查找
+- 父子兄弟祖先导航
+- `TextHandler` 与 `AttributesHandler` 基线
+- XPath 仍在下一刀中
+
 ## 关键文档
 
 - 愿景：`docs/prd/VISION.md`

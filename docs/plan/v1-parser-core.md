@@ -4,6 +4,11 @@
 
 把 `Selector` 从“能做 CSS 查询”推进到可对标源项目 parser 主体测试域。
 
+## Current Slice
+
+- 2026-03-08 当前这一刀先交付：文本查找、正则查找、父子兄弟祖先导航、`TextHandler`、`AttributesHandler`
+- XPath 保留到 parser-core 下一刀继续推进
+
 ## PRD Trace
 
 - `REQ-0001-004`
@@ -26,6 +31,11 @@
 - 关键 fixture 上，XPath、文本、导航、属性与文本 handler 断言全部通过
 - 反作弊条款：不得以“只支持 CSS”或“只返回字符串数组”充当 parser parity
 
+### 当前切片完成证据
+
+- `pnpm --filter @scrapling-ts/core test` 通过
+- `packages/core/src/__tests__/selector-parser-core.test.ts` 中 `5/5` 通过
+
 ## Files
 
 - `packages/core/src/parser/**`
@@ -44,4 +54,3 @@
 
 - XPath 库在浏览器与 Node 的行为差异
 - handler 语义很容易只实现“差不多”而不是对标 Scrapling
-
