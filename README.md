@@ -32,6 +32,12 @@
 - `TextHandler` 与 `AttributesHandler` 基线
 - 更深层 parser parity 仍在继续推进中
 
+已补齐的 advanced parser 能力：
+
+- `AttributesHandler` 的只读代理索引访问、`keys/values/items/jsonString/searchValues`
+- `TextHandler` 的 `re` / `reFirst`
+- selector generation getters
+
 ## 关键文档
 
 - 愿景：`docs/prd/VISION.md`

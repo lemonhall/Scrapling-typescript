@@ -120,6 +120,8 @@ describe("Selector parser-core slice", () => {
 
     expect(attrs.get("id")).toBe("products");
     expect(attrs.json<{ jsonable: string }>("schema")).toEqual({ jsonable: "data" });
-    expect(attrs.searchValues("data")).toContain("schema");
+    expect(attrs.searchValues("data", { partial: true })).toContainEqual({
+      schema: '{"jsonable": "data"}',
+    });
   });
 });

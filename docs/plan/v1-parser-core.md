@@ -6,8 +6,8 @@
 
 ## Current Slice
 
-- 2026-03-08 当前已交付：文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`、`AttributesHandler`
-- advanced XPath / 更完整 parity 继续留在 parser-core 后续切片
+- 2026-03-08 当前已交付：文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`、`AttributesHandler` 高级语义、selector generation
+- selector list 包装、pseudo text、similar elements 等更完整 parity 继续留在 parser-core 后续切片
 
 ## PRD Trace
 
@@ -35,6 +35,7 @@
 
 - `pnpm --filter @scrapling-ts/core test` 通过
 - `packages/core/src/__tests__/selector-parser-core.test.ts` 中 `7/7` 通过
+- `packages/core/src/__tests__/parser-advanced.test.ts` 中 `5/5` 通过
 
 ## Files
 

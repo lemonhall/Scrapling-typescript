@@ -83,6 +83,22 @@ function normalizeXPath(query: string): string {
   );
 }
 
+function getNodeIndex(element: Element): number {
+  if (element.parentElement == null) {
+    return 1;
+  }
+
+  const siblings = Array.from(element.parentElement.children).filter(
+    (candidate) => candidate.tagName === element.tagName,
+  );
+
+  return siblings.indexOf(element) + 1;
+}
+
+function escapeXPathLiteral(value: string): string {
+  return value.replace(/"/g, '\\"');
+}
+
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
@@ -214,6 +230,76 @@ export class Selector {
     }
 
     return ancestors;
+  }
+
+  get generateCssSelector(): string {
+    if (!isElementNode(this.#node)) {
+      return "html";
+    }
+
+    const id = this.#node.getAttribute("id");
+    if (id) {
+      return `#${id}`;
+    }
+
+    if (this.#node.classList.length > 0) {
+      return `.${Array.from(this.#node.classList).join(".")}`;
+    }
+
+    return this.#node.tagName.toLowerCase();
+  }
+
+  get generateFullCssSelector(): string {
+    if (!isElementNode(this.#node)) {
+      return "html";
+    }
+
+    const chain = [this.#node, ...this.ancestors.map((selector) => selector.#node).filter(isElementNode)].reverse();
+
+    return chain
+      .map((element) => {
+        const id = element.getAttribute("id");
+        if (id) {
+          return `#${id}`;
+        }
+
+        if (element.classList.length > 0) {
+          return `${element.tagName.toLowerCase()}.${Array.from(element.classList).join(".")}`;
+        }
+
+        return element.tagName.toLowerCase();
+      })
+      .join(" > ");
+  }
+
+  get generateXPathSelector(): string {
+    if (!isElementNode(this.#node)) {
+      return "/html";
+    }
+
+    const id = this.#node.getAttribute("id");
+    if (id) {
+      return `//*[@id="${escapeXPathLiteral(id)}"]`;
+    }
+
+    const className = this.#node.getAttribute("class");
+    if (className) {
+      return `//*[contains(@class, "${escapeXPathLiteral(className.split(" ")[0])}")]`;
+    }
+
+    return `//${this.#node.tagName.toLowerCase()}`;
+  }
+
+  get generateFullXPathSelector(): string {
+    if (!isElementNode(this.#node)) {
+      return "/html";
+    }
+
+    const chain = [this.#node, ...this.ancestors.map((selector) => selector.#node).filter(isElementNode)].reverse();
+
+    return chain
+      .map((element) => `/${element.tagName.toLowerCase()}[${getNodeIndex(element)}]`)
+      .join("");
   }
 
   get htmlContent(): string {
