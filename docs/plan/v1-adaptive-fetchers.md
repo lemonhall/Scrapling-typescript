@@ -25,6 +25,8 @@
 
 ## Acceptance
 
+- adaptive relocation 最小合同通过：支持 `autoSave/auto_save`、`adaptive`、显式 `identifier` 与组合选择器快照拆分
+- 当结构变化但语义仍保持时能重定位命中；当页面只剩无关节点时不得误命中
 - 静态 fetcher 合同测试通过
 - 动态 fetcher 的 Node 与 WebExt 适配层测试通过
 - 代理轮换与响应标准化测试通过
@@ -39,15 +41,28 @@
 
 ## Steps
 
-1. 红：写 adaptive/fetcher/proxy 失败测试
-2. 红验证：缺失实现导致测试按预期失败
-3. 绿：补齐 fetchers 与 runtime adapter
-4. 绿验证：对应测试与必要 E2E 全绿
-5. 重构：统一响应对象与错误模型
-6. E2E：动态页面抓取流程跑通
+1. 已完成：adaptive relocation baseline（内存快照、组合选择器拆分、最小重定位评分）
+2. 已完成：adaptive 合同测试覆盖正例、显式 `identifier`、误命中负例
+3. 下一刀：抽象 adaptive storage，分别接 Node/WebExt 持久化后端
+4. 下一刀：补静态 `Fetcher` / `AsyncFetcher` 红绿测试与响应对象基线
+5. 后续：动态/stealth fetchers 与代理轮换
+6. 里程碑收口：Node/WebExt 适配层测试 + 必要 E2E 全绿
+
+## Current Slice Evidence
+
+- 目标需求：`REQ-0001-005`
+- 代码：`packages/core/src/parser/selector.ts`
+- 测试：`packages/core/src/__tests__/adaptive-relocation.test.ts`
+- 当前实现：
+  - `css(query, options)` 支持 `adaptive`、`autoSave`、`auto_save`、`identifier`
+  - 快照按 `url + identifier` 存入进程内存 store
+  - 组合选择器如 `#p1, #p2` 会拆成单 selector 分别保存
+  - 重定位评分当前依据 `tag`、直接文本、聚合文本、属性值重合，并设置最小命中阈值避免误命中
+- 当前非目标：
+  - 尚未引入 Node/WebExt 可持久化 storage backend
+  - 尚未实现 fetcher 族与代理轮换
 
 ## Risks
 
 - Chrome 插件权限与浏览器自动化接口边界复杂
 - 反 bot 方案需要清晰分层，避免把第三方工具绑死到 core
-

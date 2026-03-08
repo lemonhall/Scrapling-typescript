@@ -32,6 +32,13 @@
 - `TextHandler` 与 `AttributesHandler` 基线
 - 更深层 parser parity 仍在继续推进中
 
+正在推进的第三个 slice：
+
+- adaptive relocation baseline：`autoSave/auto_save`
+- 结构变化后的元素重定位
+- 显式 `identifier` 快照命中
+- 误命中保护，避免把无关节点错认成历史元素
+
 已补齐的 advanced parser 能力：
 
 - `AttributesHandler` 的只读代理索引访问、`keys/values/items/jsonString/searchValues`
@@ -40,6 +47,9 @@
 - selector collection 的 `first`
 - `::text` 文本伪选择器、`get()`、`reFirst/re_first`
 - `findSimilar()` 与基础错误校验
+- `find/find_all`、XPath variables、`path/siblings/prettify/body/urljoin/get_all_text`
+- CSS `:contains()` / `:not(:contains())`、`keep_comments` / `keep_cdata`
+- adaptive relocation baseline（内存快照、组合选择器拆分、显式 `identifier`）
 
 ## 关键文档
 
@@ -48,6 +58,7 @@
 - v1 索引：`docs/plan/v1-index.md`
 - foundation 计划：`docs/plan/v1-foundation.md`
 - parser-core 计划：`docs/plan/v1-parser-core.md`
+- adaptive/fetchers 计划：`docs/plan/v1-adaptive-fetchers.md`
 
 ## 开发
 
@@ -76,6 +87,6 @@ pnpm typecheck
 
 - `M0 Foundation`：已完成
 - `M1 Parser Core`：进行中
-- `M2 Adaptive + Fetchers`：待开始
+- `M2 Adaptive + Fetchers`：进行中
 - `M3 Spiders`：待开始
 - `M4 CLI + MCP`：待开始

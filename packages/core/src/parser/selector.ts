@@ -28,7 +28,24 @@ interface GetAllTextOptions {
   valid_values?: boolean;
 }
 
+interface CssQueryOptions {
+  identifier?: string;
+  adaptive?: boolean;
+  autoSave?: boolean;
+  auto_save?: boolean;
+}
+
+interface AdaptiveSnapshot {
+  tag: string | null;
+  text: string;
+  allText: string;
+  attributes: Record<string, string>;
+}
+
 type FindArg = string | Iterable<string> | RegExp | ((element: Selector) => boolean) | Record<string, string>;
+
+const adaptiveStore = new Map<string, AdaptiveSnapshot>();
+const ADAPTIVE_MINIMUM_SCORE = 10;
 
 class TextSelection {
   readonly #value: string;
@@ -136,6 +153,22 @@ function normalizeWhitespace(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function shouldUseAdaptiveCss(options: CssQueryOptions): boolean {
+  return options.adaptive ?? false;
+}
+
+function shouldAutoSaveCss(options: CssQueryOptions): boolean {
+  return options.autoSave ?? options.auto_save ?? false;
+}
+
+function createAdaptiveKey(url: string | undefined, identifier: string): string {
+  return `${url ?? ""}::${identifier}`;
+}
+
+function splitCssSelectors(query: string): string[] {
+  return query.split(",").map((selector) => selector.trim()).filter((selector) => selector.length > 0);
+}
+
 function shouldKeepComments(options: SelectorOptions): boolean {
   return options.keepComments ?? options.keep_comments ?? false;
 }
@@ -230,6 +263,72 @@ function createSelector(node: Element, source: Selector): Selector {
     keepComments: source.keepComments,
     keepCdata: source.keepCdata,
   });
+}
+
+function createAdaptiveSnapshot(selector: Selector): AdaptiveSnapshot {
+  return {
+    tag: selector.tag,
+    text: String(selector.text),
+    allText: selector.getAllText({ strip: true }),
+    attributes: { ...selector.attributes },
+  };
+}
+
+function saveAdaptiveSnapshot(url: string | undefined, identifier: string, selector: Selector): void {
+  adaptiveStore.set(createAdaptiveKey(url, identifier), createAdaptiveSnapshot(selector));
+}
+
+function retrieveAdaptiveSnapshot(url: string | undefined, identifier: string): AdaptiveSnapshot | undefined {
+  return adaptiveStore.get(createAdaptiveKey(url, identifier));
+}
+
+function calculateAdaptiveScore(snapshot: AdaptiveSnapshot, candidate: Selector): number {
+  let score = 0;
+  const candidateText = String(candidate.text);
+  const candidateAllText = candidate.getAllText({ strip: true });
+
+  if (snapshot.tag != null && candidate.tag === snapshot.tag) {
+    score += 4;
+  }
+
+  if (snapshot.text.length > 0 && candidateText === snapshot.text) {
+    score += 6;
+  }
+
+  if (snapshot.allText.length > 0 && candidateAllText === snapshot.allText) {
+    score += 10;
+  }
+
+  const candidateAttributeEntries = Object.entries(candidate.attributes);
+  for (const [key, value] of Object.entries(snapshot.attributes)) {
+    if (candidate.attributes[key] === value) {
+      score += 3;
+      continue;
+    }
+
+    if (candidateAttributeEntries.some(([, candidateValue]) => candidateValue === value)) {
+      score += 2;
+    }
+  }
+
+  return score;
+}
+
+function relocateAdaptiveSelector(root: SelectorRoot, source: Selector, snapshot: AdaptiveSnapshot): Selector | null {
+  let bestMatch: Selector | null = null;
+  let bestScore = 0;
+
+  for (const element of getSearchPool(root)) {
+    const candidate = createSelector(element, source);
+    const score = calculateAdaptiveScore(snapshot, candidate);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = candidate;
+    }
+  }
+
+  return bestScore >= ADAPTIVE_MINIMUM_SCORE ? bestMatch : null;
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -340,7 +439,7 @@ export class Selector {
     this.keepCdata = shouldKeepCdata(options);
   }
 
-  css(query: string): SelectorCollection<Selector | TextSelection> {
+  css(query: string, options: CssQueryOptions = {}): SelectorCollection<Selector | TextSelection> {
     const textMode = query.endsWith("::text");
     const attrMatch = query.match(/::attr\(([^)]+)\)$/);
     const attrMode = attrMatch != null;
@@ -352,6 +451,16 @@ export class Selector {
     validateCssQuery(normalizedQuery);
     const matches = Array.from(this.#node.querySelectorAll(normalizedQuery));
 
+    if (!textMode && !attrMode && matches.length === 0 && this.adaptive && shouldUseAdaptiveCss(options)) {
+      const identifier = options.identifier ?? normalizedQuery;
+      const snapshot = retrieveAdaptiveSnapshot(this.url, identifier);
+      const relocated = snapshot == null ? null : relocateAdaptiveSelector(this.#node, this, snapshot);
+
+      if (relocated != null) {
+        return createCollection([relocated]);
+      }
+    }
+
     if (textMode) {
       return createCollection(matches.map((element) => new TextSelection(element.textContent ?? "")));
     }
@@ -361,9 +470,25 @@ export class Selector {
       return createCollection(matches.map((element) => new TextSelection(element.getAttribute(attrName) ?? "")));
     }
 
-    return createCollection(
-      matches.map((element) => new Selector(element, { url: this.url, adaptive: this.adaptive })),
-    );
+    const selectors = createCollection(matches.map((element) => createSelector(element, this)));
+
+    if (this.adaptive && shouldAutoSaveCss(options)) {
+      const identifier = options.identifier ?? normalizedQuery;
+      const singles = splitCssSelectors(normalizedQuery);
+
+      if (singles.length > 1) {
+        for (const singleSelector of singles) {
+          const singleMatch = Array.from(this.#node.querySelectorAll(singleSelector))[0];
+          if (singleMatch != null) {
+            saveAdaptiveSnapshot(this.url, singleSelector, createSelector(singleMatch, this));
+          }
+        }
+      } else if (selectors.first instanceof Selector) {
+        saveAdaptiveSnapshot(this.url, identifier, selectors.first);
+      }
+    }
+
+    return selectors;
   }
 
   xpath(query: string, variables: Record<string, unknown> = {}): SelectorCollection<Selector> {
