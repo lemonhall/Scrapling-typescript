@@ -38,6 +38,8 @@
 - 结构变化后的元素重定位
 - 显式 `identifier` 快照命中
 - 误命中保护，避免把无关节点错认成历史元素
+- `adaptiveStorage` 注入接口
+- Node 文件后端与 Web Storage 后端
 
 已补齐的 advanced parser 能力：
 
@@ -49,7 +51,7 @@
 - `findSimilar()` 与基础错误校验
 - `find/find_all`、XPath variables、`path/siblings/prettify/body/urljoin/get_all_text`
 - CSS `:contains()` / `:not(:contains())`、`keep_comments` / `keep_cdata`
-- adaptive relocation baseline（内存快照、组合选择器拆分、显式 `identifier`）
+- adaptive relocation baseline（内存快照、组合选择器拆分、显式 `identifier`、storage abstraction）
 
 ## 关键文档
 

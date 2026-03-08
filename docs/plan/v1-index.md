@@ -30,7 +30,7 @@
 | REQ-0001-002 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
 | REQ-0001-003 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
 | REQ-0001-004 | `v1-parser-core` | `packages/core/src/__tests__/selector-parser-core.test.ts` + `packages/core/src/__tests__/parser-advanced.test.ts` + `packages/core/src/__tests__/selector-compatibility.test.ts` + `packages/core/src/__tests__/selector-similar-errors.test.ts` + `packages/core/src/__tests__/selector-helper-parity.test.ts` + `packages/core/src/__tests__/selector-utilities.test.ts` + `packages/core/src/__tests__/selector-find-helpers.test.ts` | 2026-03-08 parser-core 当前累计 `39/39` passed（text/regex/XPath/navigation/handler/selector-generation/attributes advanced/compatibility/similar/error/helper parity/collections/aliases/utilities/pseudo-attr/find-helpers/xpath-vars/css-contains/comments-cdata） | doing |
-| REQ-0001-005 | `v1-adaptive-fetchers` | `packages/core/src/__tests__/adaptive-relocation.test.ts` | 2026-03-08 adaptive relocation baseline `3/3` passed（结构变化重定位 / 显式 identifier / 误命中负例） | doing |
+| REQ-0001-005 | `v1-adaptive-fetchers` | `packages/core/src/__tests__/adaptive-relocation.test.ts` + `packages/core/src/__tests__/adaptive-storage.test.ts` | 2026-03-08 adaptive relocation + storage abstraction `4/4` passed（结构变化重定位 / 显式 identifier / 误命中负例 / 注入式 storage 隔离） | doing |
 | REQ-0001-006 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/fetcher-static*.test.ts` | — | todo |
 | REQ-0001-007 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/dynamic-fetcher*.test.ts` + WebExt E2E | — | todo |
 | REQ-0001-008 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/stealth-fetcher*.test.ts` + adapter tests | — | todo |
@@ -39,7 +39,7 @@
 | REQ-0001-011 | `v1-spiders-cli-ai` | `packages/node/src/__tests__/cli*.test.ts` | — | todo |
 | REQ-0001-012 | `v1-spiders-cli-ai` | `packages/node/src/__tests__/mcp*.test.ts` | — | todo |
 | REQ-0001-013 | `v1-spiders-cli-ai` | `docs/plan/v1-index.md` trace 全链路 | — | todo |
-| REQ-0001-014 | `v1-foundation` + all | `packages/node/src/__tests__/exports.test.ts` + `packages/webext/src/__tests__/exports.test.ts` | 2026-03-08 Node `2/2` passed；WebExt `2/2` passed | done |
+| REQ-0001-014 | `v1-foundation` + all | `packages/node/src/__tests__/exports.test.ts` + `packages/webext/src/__tests__/exports.test.ts` + `packages/node/src/__tests__/adaptive-storage.test.ts` + `packages/webext/src/__tests__/adaptive-storage.test.ts` | 2026-03-08 Node `3/3` passed；WebExt `3/3` passed（runtime exports + adaptive storage backend） | done |
 
 ## ECN 索引
 
@@ -47,6 +47,6 @@
 
 ## 差异列表
 
-- 当前已完成 foundation、parser baseline，并已进入 adaptive relocation baseline：已支持内存快照、组合选择器拆分、显式 `identifier` 与误命中保护；fetchers、spiders、CLI、MCP 尚未开始
+- 当前已完成 foundation、parser baseline，并已进入 adaptive relocation baseline：已支持内存快照、组合选择器拆分、显式 `identifier`、误命中保护，以及可注入 adaptive storage（core memory / node file / web storage）；fetchers、spiders、CLI、MCP 尚未开始
 - `parser-core` 已完成文本查找、正则查找、XPath 基线与变量绑定、父子兄弟祖先导航、`TextHandler`/`TextHandlers` 高级语义、selector generation、selector list `first/last/length/search/filter/get/getall`、`::text`/`::attr(name)`、source-style snake_case aliases、`path/siblings/prettify/body/urljoin/get_all_text` utilities、`find`/`find_all` helpers、CSS `:contains()` / `:not(:contains())` 合同覆盖、`keep_comments` / `keep_cdata` 行为、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面；仍缺更深层 helper parity 与 adaptive 相关边界
 - Chrome 插件侧动态/stealth 抓取的具体桥接方案已在 PRD 锁定方向，但尚未编码落地

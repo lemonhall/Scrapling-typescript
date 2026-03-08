@@ -43,7 +43,7 @@
 
 1. 已完成：adaptive relocation baseline（内存快照、组合选择器拆分、最小重定位评分）
 2. 已完成：adaptive 合同测试覆盖正例、显式 `identifier`、误命中负例
-3. 下一刀：抽象 adaptive storage，分别接 Node/WebExt 持久化后端
+3. 已完成：抽象 `adaptiveStorage` 注入接口，并接入 Node 文件后端 / Web Storage 后端
 4. 下一刀：补静态 `Fetcher` / `AsyncFetcher` 红绿测试与响应对象基线
 5. 后续：动态/stealth fetchers 与代理轮换
 6. 里程碑收口：Node/WebExt 适配层测试 + 必要 E2E 全绿
@@ -55,11 +55,13 @@
 - 测试：`packages/core/src/__tests__/adaptive-relocation.test.ts`
 - 当前实现：
   - `css(query, options)` 支持 `adaptive`、`autoSave`、`auto_save`、`identifier`
-  - 快照按 `url + identifier` 存入进程内存 store
+  - `SelectorOptions` 支持注入 `adaptiveStorage` / `adaptive_storage`
+  - 默认快照按 `url + identifier` 存入进程内存 store
   - 组合选择器如 `#p1, #p2` 会拆成单 selector 分别保存
   - 重定位评分当前依据 `tag`、直接文本、聚合文本、属性值重合，并设置最小命中阈值避免误命中
+  - `packages/core` 导出 `createMemoryAdaptiveStorage` 与 `createWebStorageAdaptiveStorage`
+  - `packages/node` 导出 `createFileAdaptiveStorage`，可跨 selector 实例持久化快照
 - 当前非目标：
-  - 尚未引入 Node/WebExt 可持久化 storage backend
   - 尚未实现 fetcher 族与代理轮换
 
 ## Risks

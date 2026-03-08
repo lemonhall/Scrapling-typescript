@@ -2,6 +2,7 @@ import { parseHTML } from "linkedom";
 import { parse as parseCssSelector } from "css-what";
 import fontoxpath from "fontoxpath";
 
+import { type AdaptiveSnapshot, type AdaptiveStorage, defaultAdaptiveStorage } from "./adaptive-storage.js";
 import { AttributesHandler, TextHandler, TextHandlers } from "./handlers.js";
 
 const { evaluateXPathToNodes } = fontoxpath;
@@ -35,16 +36,8 @@ interface CssQueryOptions {
   auto_save?: boolean;
 }
 
-interface AdaptiveSnapshot {
-  tag: string | null;
-  text: string;
-  allText: string;
-  attributes: Record<string, string>;
-}
-
 type FindArg = string | Iterable<string> | RegExp | ((element: Selector) => boolean) | Record<string, string>;
 
-const adaptiveStore = new Map<string, AdaptiveSnapshot>();
 const ADAPTIVE_MINIMUM_SCORE = 10;
 
 class TextSelection {
@@ -139,6 +132,8 @@ class SelectorCollection<T> extends Array<T> {
 export interface SelectorOptions {
   url?: string;
   adaptive?: boolean;
+  adaptiveStorage?: AdaptiveStorage;
+  adaptive_storage?: AdaptiveStorage;
   keepComments?: boolean;
   keep_comments?: boolean;
   keepCdata?: boolean;
@@ -159,6 +154,10 @@ function shouldUseAdaptiveCss(options: CssQueryOptions): boolean {
 
 function shouldAutoSaveCss(options: CssQueryOptions): boolean {
   return options.autoSave ?? options.auto_save ?? false;
+}
+
+function resolveAdaptiveStorage(options: SelectorOptions): AdaptiveStorage {
+  return options.adaptiveStorage ?? options.adaptive_storage ?? defaultAdaptiveStorage;
 }
 
 function createAdaptiveKey(url: string | undefined, identifier: string): string {
@@ -260,6 +259,7 @@ function createSelector(node: Element, source: Selector): Selector {
   return new Selector(node, {
     url: source.url,
     adaptive: source.adaptive,
+    adaptiveStorage: source.adaptiveStorage,
     keepComments: source.keepComments,
     keepCdata: source.keepCdata,
   });
@@ -274,12 +274,12 @@ function createAdaptiveSnapshot(selector: Selector): AdaptiveSnapshot {
   };
 }
 
-function saveAdaptiveSnapshot(url: string | undefined, identifier: string, selector: Selector): void {
-  adaptiveStore.set(createAdaptiveKey(url, identifier), createAdaptiveSnapshot(selector));
+function saveAdaptiveSnapshot(storage: AdaptiveStorage, url: string | undefined, identifier: string, selector: Selector): void {
+  storage.set(createAdaptiveKey(url, identifier), createAdaptiveSnapshot(selector));
 }
 
-function retrieveAdaptiveSnapshot(url: string | undefined, identifier: string): AdaptiveSnapshot | undefined {
-  return adaptiveStore.get(createAdaptiveKey(url, identifier));
+function retrieveAdaptiveSnapshot(storage: AdaptiveStorage, url: string | undefined, identifier: string): AdaptiveSnapshot | undefined {
+  return storage.get(createAdaptiveKey(url, identifier));
 }
 
 function calculateAdaptiveScore(snapshot: AdaptiveSnapshot, candidate: Selector): number {
@@ -416,6 +416,7 @@ function createCollection<T>(items: T[]): SelectorCollection<T> {
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
+  readonly adaptiveStorage: AdaptiveStorage;
   readonly keepComments: boolean;
   readonly keepCdata: boolean;
   readonly #document: Document;
@@ -435,6 +436,7 @@ export class Selector {
 
     this.url = options.url;
     this.adaptive = options.adaptive ?? false;
+    this.adaptiveStorage = resolveAdaptiveStorage(options);
     this.keepComments = shouldKeepComments(options);
     this.keepCdata = shouldKeepCdata(options);
   }
@@ -453,7 +455,7 @@ export class Selector {
 
     if (!textMode && !attrMode && matches.length === 0 && this.adaptive && shouldUseAdaptiveCss(options)) {
       const identifier = options.identifier ?? normalizedQuery;
-      const snapshot = retrieveAdaptiveSnapshot(this.url, identifier);
+      const snapshot = retrieveAdaptiveSnapshot(this.adaptiveStorage, this.url, identifier);
       const relocated = snapshot == null ? null : relocateAdaptiveSelector(this.#node, this, snapshot);
 
       if (relocated != null) {
@@ -480,11 +482,11 @@ export class Selector {
         for (const singleSelector of singles) {
           const singleMatch = Array.from(this.#node.querySelectorAll(singleSelector))[0];
           if (singleMatch != null) {
-            saveAdaptiveSnapshot(this.url, singleSelector, createSelector(singleMatch, this));
+            saveAdaptiveSnapshot(this.adaptiveStorage, this.url, singleSelector, createSelector(singleMatch, this));
           }
         }
       } else if (selectors.first instanceof Selector) {
-        saveAdaptiveSnapshot(this.url, identifier, selectors.first);
+        saveAdaptiveSnapshot(this.adaptiveStorage, this.url, identifier, selectors.first);
       }
     }
 
