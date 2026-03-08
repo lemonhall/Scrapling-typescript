@@ -141,6 +141,23 @@ describe("parser advanced parity slice", () => {
     expect(String(found?.text)).toBe("Regular");
   });
 
+  test("XPath supports variable bindings", () => {
+    const page = new Selector(`
+      <html>
+        <body>
+          <table>
+            <tr><td>Cell 1</td><td>Cell 2</td></tr>
+          </table>
+        </body>
+      </html>
+    `);
+
+    const cells = page.xpath("//td[text()=$cell_text]", { cell_text: "Cell 1" });
+
+    expect(cells).toHaveLength(1);
+    expect(String(cells[0]?.text)).toBe("Cell 1");
+  });
+
   test("Selector generation getters return stable strings", () => {
     const page = new Selector(advancedHtml);
     const card = page.css(".child-card")[0];

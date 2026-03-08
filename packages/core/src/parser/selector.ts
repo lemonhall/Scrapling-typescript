@@ -321,10 +321,10 @@ export class Selector {
     );
   }
 
-  xpath(query: string): SelectorCollection<Selector> {
+  xpath(query: string, variables: Record<string, unknown> = {}): SelectorCollection<Selector> {
     validateXPathQuery(query);
     const normalizedQuery = normalizeXPath(query);
-    const nodes = evaluateXPathToNodes(normalizedQuery, this.#node);
+    const nodes = evaluateXPathToNodes(normalizedQuery, this.#node, undefined, variables);
 
     return createCollection(
       nodes
