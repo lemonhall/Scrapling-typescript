@@ -78,6 +78,17 @@ describe("Selector parser-core slice", () => {
     expect(reviews[0]?.attributes["data-rating"]).toBe("5");
   });
 
+  test("REQ-0001-004 支持 CSS :contains() 与 :not(:contains()) 过滤", () => {
+    const page = new Selector(html);
+
+    const inStock = page.css('main #products .product-list article.product:not(:contains("Out of stock"))');
+    const outOfStock = page.css('main #products .product-list article.product:contains("Out of stock")');
+
+    expect(inStock).toHaveLength(2);
+    expect(outOfStock).toHaveLength(1);
+    expect(outOfStock.first?.attributes["data-id"]).toBe("3");
+  });
+
   test("REQ-0001-004 支持带函数的 XPath 查询", () => {
     const page = new Selector(html);
 
