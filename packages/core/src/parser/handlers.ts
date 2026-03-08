@@ -1,3 +1,68 @@
+interface TextRegexOptions {
+  cleanMatch?: boolean;
+  caseSensitive?: boolean;
+  replaceEntities?: boolean;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function compilePattern(pattern: RegExp | string, options: TextRegexOptions = {}): RegExp {
+  if (typeof pattern === "string") {
+    const flags = `${options.caseSensitive === false ? "gi" : "g"}`;
+    return new RegExp(pattern, flags);
+  }
+
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  return new RegExp(pattern.source, flags);
+}
+
+export class TextHandlers extends Array<string> {
+  constructor(values: Iterable<string | TextHandler> | number = []) {
+    if (typeof values === "number") {
+      super(values);
+      return;
+    }
+
+    super();
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.push(...Array.from(values, (value) => String(value)));
+  }
+
+  override slice(start?: number, end?: number): TextHandlers {
+    return new TextHandlers(super.slice(start, end));
+  }
+
+  get(defaultValue?: string): string | undefined {
+    return this[0] ?? defaultValue;
+  }
+
+  extract(): TextHandlers {
+    return new TextHandlers(this);
+  }
+
+  getAll(): TextHandlers {
+    return this.extract();
+  }
+
+  get_all(): TextHandlers {
+    return this.getAll();
+  }
+
+  re(pattern: RegExp | string, options: TextRegexOptions = {}): TextHandlers {
+    return new TextHandlers(this.flatMap((value) => Array.from(new TextHandler(value).re(pattern, options))));
+  }
+
+  reFirst(pattern: RegExp | string, defaultValue: string | null = null, options: TextRegexOptions = {}): string | null {
+    return this.re(pattern, options)[0] ?? defaultValue;
+  }
+
+  re_first(pattern: RegExp | string, defaultValue: string | null = null, options: TextRegexOptions = {}): string | null {
+    return this.reFirst(pattern, defaultValue, options);
+  }
+}
+
 export class TextHandler {
   readonly #value: string;
 
@@ -13,6 +78,60 @@ export class TextHandler {
     return this.#value;
   }
 
+  strip(chars?: string): TextHandler {
+    if (chars == null) {
+      return new TextHandler(this.#value.trim());
+    }
+
+    const pattern = new RegExp(`^[${escapeRegExp(chars)}]+|[${escapeRegExp(chars)}]+$`, "g");
+    return new TextHandler(this.#value.replace(pattern, ""));
+  }
+
+  upper(): TextHandler {
+    return new TextHandler(this.#value.toUpperCase());
+  }
+
+  lower(): TextHandler {
+    return new TextHandler(this.#value.toLowerCase());
+  }
+
+  replace(searchValue: RegExp | string, replaceValue: string): TextHandler {
+    return new TextHandler(this.#value.replace(searchValue, replaceValue));
+  }
+
+  sort(reverse = false): TextHandler {
+    const sorted = [...this.#value].sort();
+    if (reverse) {
+      sorted.reverse();
+    }
+
+    return new TextHandler(sorted.join(""));
+  }
+
+  clean(): TextHandler {
+    return new TextHandler(this.#value.replace(/[\t\r\n]/g, " ").replace(/\s+/g, " ").trim());
+  }
+
+  get(defaultValue?: string): string {
+    return this.#value ?? defaultValue ?? "";
+  }
+
+  getAll(): string {
+    return this.#value;
+  }
+
+  get_all(): string {
+    return this.getAll();
+  }
+
+  extract(): string {
+    return this.getAll();
+  }
+
+  extract_first(defaultValue?: string): string {
+    return this.get(defaultValue);
+  }
+
   json<T>(): T {
     return JSON.parse(this.#value) as T;
   }
@@ -21,14 +140,30 @@ export class TextHandler {
     return this.#value.match(pattern);
   }
 
-  re(pattern: RegExp | string): string[] {
-    const source = typeof pattern === "string" ? new RegExp(pattern, "g") : new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  re(pattern: RegExp | string, options: TextRegexOptions = {}): TextHandlers {
+    const source = compilePattern(pattern, options);
+    const input = options.cleanMatch ? this.clean().toString() : this.#value;
+    const matches = Array.from(input.matchAll(source)).flatMap((match) => {
+      if (match.length > 2) {
+        return match.slice(1);
+      }
 
-    return Array.from(this.#value.matchAll(source)).map((match) => match[1] ?? match[0]);
+      if (match.length === 2) {
+        return [match[1]];
+      }
+
+      return [match[0]];
+    });
+
+    return new TextHandlers(matches);
   }
 
-  reFirst(pattern: RegExp | string): string | null {
-    return this.re(pattern)[0] ?? null;
+  reFirst(pattern: RegExp | string, options: TextRegexOptions = {}): string | null {
+    return this.re(pattern, options)[0] ?? null;
+  }
+
+  re_first(pattern: RegExp | string, options: TextRegexOptions = {}): string | null {
+    return this.reFirst(pattern, options);
   }
 
   contains(needle: string, options: { caseSensitive?: boolean } = {}): boolean {

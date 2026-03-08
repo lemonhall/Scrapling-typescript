@@ -29,7 +29,7 @@
 | REQ-0001-001 | `v1-foundation` | `pnpm test && pnpm build && pnpm typecheck` | 2026-03-08 本地执行通过 | done |
 | REQ-0001-002 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
 | REQ-0001-003 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
-| REQ-0001-004 | `v1-parser-core` | `packages/core/src/__tests__/selector-parser-core.test.ts` + `packages/core/src/__tests__/parser-advanced.test.ts` + `packages/core/src/__tests__/selector-compatibility.test.ts` + `packages/core/src/__tests__/selector-similar-errors.test.ts` + `packages/core/src/__tests__/selector-helper-parity.test.ts` | 2026-03-08 parser-core 当前累计 `24/24` passed（text/regex/XPath/navigation/handler/selector-generation/attributes advanced/compatibility/similar/error/helper parity） | doing |
+| REQ-0001-004 | `v1-parser-core` | `packages/core/src/__tests__/selector-parser-core.test.ts` + `packages/core/src/__tests__/parser-advanced.test.ts` + `packages/core/src/__tests__/selector-compatibility.test.ts` + `packages/core/src/__tests__/selector-similar-errors.test.ts` + `packages/core/src/__tests__/selector-helper-parity.test.ts` | 2026-03-08 parser-core 当前累计 `28/28` passed（text/regex/XPath/navigation/handler/selector-generation/attributes advanced/compatibility/similar/error/helper parity/collections） | doing |
 | REQ-0001-005 | `v1-adaptive-fetchers` | `packages/core/src/__tests__/adaptive-relocation.test.ts` | — | todo |
 | REQ-0001-006 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/fetcher-static*.test.ts` | — | todo |
 | REQ-0001-007 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/dynamic-fetcher*.test.ts` + WebExt E2E | — | todo |
@@ -48,5 +48,5 @@
 ## 差异列表
 
 - 当前已完成 foundation 与 parser baseline，尚未进入 XPath、adaptive、fetchers、spiders、CLI、MCP 的实装
-- `parser-core` 已完成文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`、`AttributesHandler` 高级语义、selector generation、selector list `first`、`::text`、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面；仍缺更深层 helper parity 与 adaptive 相关边界
+- `parser-core` 已完成文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`/`TextHandlers` 高级语义、selector generation、selector list `first/last/length/search/filter`、`::text`、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面；仍缺更深层 helper parity 与 adaptive 相关边界
 - Chrome 插件侧动态/stealth 抓取的具体桥接方案已在 PRD 锁定方向，但尚未编码落地

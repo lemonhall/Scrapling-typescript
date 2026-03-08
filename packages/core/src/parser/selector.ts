@@ -34,7 +34,42 @@ class TextSelection {
   }
 }
 
-type SelectorCollection<T> = T[] & { first: T | undefined };
+class SelectorCollection<T> extends Array<T> {
+  constructor(items: Iterable<T> | number = []) {
+    if (typeof items === "number") {
+      super(items);
+      return;
+    }
+
+    super();
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.push(...items);
+  }
+
+  get first(): T | undefined {
+    return this[0];
+  }
+
+  get last(): T | undefined {
+    return this.length > 0 ? this[this.length - 1] : undefined;
+  }
+
+  search(predicate: (item: T) => boolean): T | undefined {
+    for (const item of this) {
+      if (predicate(item)) {
+        return item;
+      }
+    }
+
+    return undefined;
+  }
+
+  override filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: unknown): SelectorCollection<S>;
+  override filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: unknown): SelectorCollection<T>;
+  override filter(predicate: (value: T, index: number, array: T[]) => unknown, thisArg?: unknown): SelectorCollection<T> {
+    return new SelectorCollection(Array.from(this).filter(predicate as (value: T, index: number, array: T[]) => unknown, thisArg));
+  }
+}
 
 export interface SelectorOptions {
   url?: string;
@@ -139,14 +174,7 @@ function validateCssQuery(query: string): void {
 }
 
 function createCollection<T>(items: T[]): SelectorCollection<T> {
-  const collection = [...items] as SelectorCollection<T>;
-  Object.defineProperty(collection, "first", {
-    configurable: true,
-    enumerable: false,
-    get: () => collection[0],
-  });
-
-  return collection;
+  return new SelectorCollection(items);
 }
 
 export class Selector {

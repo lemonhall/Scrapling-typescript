@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { AttributesHandler, Selector, TextHandler } from "../index.js";
+import { AttributesHandler, Selector, TextHandler, TextHandlers } from "../index.js";
 
 const advancedHtml = `
 <html>
@@ -80,6 +80,65 @@ describe("parser advanced parity slice", () => {
 
     expect(price.reFirst(/[\.\d]+/)).toBe("10.99");
     expect(price.re(/(\d+)/)).toEqual(["10", "99"]);
+  });
+
+  test("TextHandler advanced string methods preserve handler semantics", () => {
+    const text = new TextHandler("  Hello World  ");
+
+    expect(text.strip()).toBeInstanceOf(TextHandler);
+    expect(text.upper()).toBeInstanceOf(TextHandler);
+    expect(text.lower()).toBeInstanceOf(TextHandler);
+    expect(text.replace("World", "TypeScript")).toBeInstanceOf(TextHandler);
+    expect(String(text.strip())).toBe("Hello World");
+    expect(String(text.upper())).toBe("  HELLO WORLD  ");
+    expect(String(text.lower())).toBe("  hello world  ");
+    expect(String(text.replace("World", "TypeScript"))).toBe("  Hello TypeScript  ");
+    expect(String(text.clean())).toBe("Hello World");
+    expect(String(new TextHandler("dcba").sort())).toBe("abcd");
+  });
+
+  test("TextHandler regex options support case-insensitive and clean matching", () => {
+    const prices = new TextHandler("Price: $10.99, Sale: $8.99");
+    const greetings = new TextHandler("HELLO hello HeLLo");
+    const spaced = new TextHandler(" He  l  lo ");
+
+    expect(prices.re("\\$[\\d.]+")).toEqual(["$10.99", "$8.99"]);
+    expect(greetings.re("hello", { caseSensitive: false })).toEqual(["HELLO", "hello", "HeLLo"]);
+    expect(spaced.re("He l lo", { cleanMatch: true, caseSensitive: false })).toEqual(["He l lo"]);
+  });
+
+  test("TextHandlers slicing and get semantics mirror source project", () => {
+    const handlers = new TextHandlers([
+      new TextHandler("First"),
+      new TextHandler("Second"),
+      new TextHandler("Third"),
+    ]);
+
+    expect(handlers.slice(0, 2)).toBeInstanceOf(TextHandlers);
+    expect(handlers.get()).toBe("First");
+    expect(handlers.get("default")).toBe("First");
+    expect(new TextHandlers().get("default")).toBe("default");
+  });
+
+  test("Selector collections expose last, length, search and filter parity", () => {
+    const page = new Selector(`
+      <div>
+        <p class="highlight">Important</p>
+        <p>Regular</p>
+        <p class="highlight">Also important</p>
+      </div>
+    `);
+
+    const paragraphs = page.css("p");
+    const highlighted = paragraphs.filter((paragraph) => paragraph.hasClass("highlight"));
+    const found = paragraphs.search((paragraph) => String(paragraph.text) === "Regular");
+
+    expect(String(paragraphs.first?.text)).toBe("Important");
+    expect(String(paragraphs.last?.text)).toBe("Also important");
+    expect(paragraphs.length).toBe(3);
+    expect(String(highlighted.first?.text)).toBe("Important");
+    expect(highlighted.length).toBe(2);
+    expect(String(found?.text)).toBe("Regular");
   });
 
   test("Selector generation getters return stable strings", () => {
