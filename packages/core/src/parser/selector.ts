@@ -201,7 +201,7 @@ export class Selector {
   findByText(query: string, options: TextMatchOptions = {}): Selector | Selector[] | null {
     const matches = getSearchPool(this.#node)
       .map((element) => createSelector(element, this))
-      .filter((selector) => matchesText(selector.text, query, options));
+      .filter((selector) => matchesText(String(selector.text), query, options));
 
     if (options.firstMatch === false) {
       return matches;
@@ -213,7 +213,7 @@ export class Selector {
   findByRegex(pattern: RegExp, options: RegexMatchOptions = {}): Selector | Selector[] | null {
     const matches = getSearchPool(this.#node)
       .map((element) => createSelector(element, this))
-      .filter((selector) => pattern.test(selector.text));
+      .filter((selector) => pattern.test(String(selector.text)));
 
     if (options.firstMatch === false) {
       return matches;
@@ -226,8 +226,8 @@ export class Selector {
     return isElementNode(this.#node) ? this.#node.tagName.toLowerCase() : null;
   }
 
-  get text(): string {
-    return collectDirectText(this.#node);
+  get text(): TextHandler {
+    return new TextHandler(collectDirectText(this.#node));
   }
 
   get attributes(): Readonly<Record<string, string>> {
@@ -245,7 +245,7 @@ export class Selector {
   }
 
   get textHandler(): TextHandler {
-    return new TextHandler(this.text);
+    return this.text;
   }
 
   get parent(): Selector | null {
@@ -382,6 +382,10 @@ export class Selector {
     return normalizeWhitespace(this.#document.documentElement?.textContent);
   }
 
+  get_all_text(): string {
+    return this.getAllText();
+  }
+
   hasClass(className: string): boolean {
     return isElementNode(this.#node) ? this.#node.classList.contains(className) : false;
   }
@@ -418,6 +422,20 @@ export class Selector {
     });
 
     return createCollection(candidates.map((element) => createSelector(element, this)));
+  }
+
+  findAncestor(predicate: (node: Selector) => boolean): Selector | null {
+    for (const ancestor of this.ancestors) {
+      if (predicate(ancestor)) {
+        return ancestor;
+      }
+    }
+
+    return null;
+  }
+
+  find_ancestor(predicate: (node: Selector) => boolean): Selector | null {
+    return this.findAncestor(predicate);
   }
 
   toString(): string {

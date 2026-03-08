@@ -52,7 +52,7 @@ describe("Selector parser-core slice", () => {
     const partial = page.findByText("In stock:", { partial: true, firstMatch: false });
 
     expect(Array.isArray(exact)).toBe(false);
-    expect(exact?.text).toBe("Great product!");
+    expect(String(exact?.text)).toBe("Great product!");
     expect(Array.isArray(partial)).toBe(true);
     expect(partial).toHaveLength(2);
   });
@@ -64,7 +64,7 @@ describe("Selector parser-core slice", () => {
     const allStocks = page.findByRegex(/In stock: \d+/, { firstMatch: false });
 
     expect(Array.isArray(firstStock)).toBe(false);
-    expect(firstStock?.text).toBe("In stock: 5");
+    expect(String(firstStock?.text)).toBe("In stock: 5");
     expect(Array.isArray(allStocks)).toBe(true);
     expect(allStocks).toHaveLength(2);
   });

@@ -51,10 +51,9 @@ describe("Selector baseline", () => {
     const title = page.css("#products h3")[0];
     const productsSection = page.css("#products")[0];
 
-    expect(title?.text).toBe("Product 1");
+    expect(String(title?.text)).toBe("Product 1");
     expect(productsSection?.attributes.schema).toContain("jsonable");
     expect(productsSection?.getAllText()).toContain("Product 3");
     expect(productsSection?.htmlContent).toContain("product-list");
   });
 });
-
