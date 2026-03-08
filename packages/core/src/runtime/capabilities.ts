@@ -14,8 +14,8 @@ export type RuntimeCapability =
 
 export interface RuntimeDescriptor {
   target: RuntimeTarget;
-  capabilities: RuntimeCapability[];
-  constraints: string[];
+  capabilities: readonly RuntimeCapability[];
+  constraints: readonly string[];
 }
 
 export function defineRuntimeDescriptor(descriptor: RuntimeDescriptor): Readonly<RuntimeDescriptor> {
@@ -32,4 +32,3 @@ export function hasCapability(
 ): boolean {
   return descriptor.capabilities.includes(capability);
 }
-

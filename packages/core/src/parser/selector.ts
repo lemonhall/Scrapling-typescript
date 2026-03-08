@@ -22,7 +22,8 @@ function createDocumentFromHtml(html: string): Document {
 
 function resolveDocument(node: SelectorRoot): Document {
   if (isElementNode(node)) {
-    return node.ownerDocument ?? createDocumentFromHtml(node.outerHTML);
+    const ownerDocument = node.ownerDocument;
+    return ownerDocument ?? createDocumentFromHtml((node as Element).outerHTML);
   }
 
   return node;
@@ -80,7 +81,8 @@ export class Selector {
       return Object.freeze({});
     }
 
-    const pairs = this.#node.getAttributeNames().map((name) => [name, this.#node.getAttribute(name) ?? ""]);
+    const element = this.#node;
+    const pairs = element.getAttributeNames().map((name) => [name, element.getAttribute(name) ?? ""]);
     return Object.freeze(Object.fromEntries(pairs));
   }
 
@@ -108,4 +110,3 @@ export class Selector {
     return this.htmlContent;
   }
 }
-
