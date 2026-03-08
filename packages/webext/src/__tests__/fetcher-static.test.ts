@@ -7,6 +7,7 @@ import { AsyncFetcher, AsyncFetcherClient, Fetcher, FetcherClient } from "../ind
 describe("webext static fetcher baseline", () => {
   let server: ReturnType<typeof createServer>;
   let baseUrl = "";
+  let retryAttempts = 0;
 
   beforeAll(async () => {
     server = createServer(async (request, response) => {
@@ -39,6 +40,30 @@ describe("webext static fetcher baseline", () => {
       if (url.pathname === "/redirect") {
         response.writeHead(302, { location: "/html" });
         response.end();
+        return;
+      }
+
+      if (url.pathname === "/basic-auth") {
+        if (request.headers.authorization !== "Basic dXNlcjpwYXNz") {
+          response.writeHead(401, { "content-type": "application/json" });
+          response.end(JSON.stringify({ ok: false }));
+          return;
+        }
+
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ ok: true, authorized: true }));
+        return;
+      }
+
+      if (url.pathname === "/retry-once") {
+        retryAttempts += 1;
+        if (retryAttempts === 1) {
+          request.socket.destroy();
+          return;
+        }
+
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ ok: true, attempt: retryAttempts }));
         return;
       }
 
@@ -111,6 +136,33 @@ describe("webext static fetcher baseline", () => {
       url: `${baseUrl}/redirect`,
     });
     expect(String(response.css("h1").first?.text)).toBe("WebExt Fetcher");
+  });
+
+  test("Fetcher retries transient failures and preserves response meta", async () => {
+    retryAttempts = 0;
+
+    const response = await Fetcher.get(`${baseUrl}/retry-once`, {
+      retries: 2,
+      retry_delay: 0,
+      timeout: null,
+      meta: { requestId: "webext-retry" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.meta).toMatchObject({ requestId: "webext-retry" });
+    expect(response.json<{ attempt: number }>()).toMatchObject({ attempt: 2 });
+  });
+
+  test("AsyncFetcher applies basic auth headers and keeps response meta", async () => {
+    const response = await AsyncFetcher.get(`${baseUrl}/basic-auth`, {
+      auth: ["user", "pass"],
+      timeout: null,
+      meta: { scope: "auth" },
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.meta).toMatchObject({ scope: "auth" });
+    expect(response.json<{ authorized: boolean }>()).toMatchObject({ authorized: true });
   });
 
   test("FetcherClient persists cookies and default headers across requests", async () => {

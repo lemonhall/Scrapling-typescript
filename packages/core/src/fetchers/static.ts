@@ -3,12 +3,17 @@ import { Response, type ResponseCookie, type ResponseHistoryEntry } from "./resp
 
 type QueryValue = string | number | boolean;
 type CookieInput = Record<string, QueryValue> | ResponseCookie[] | string;
+type AuthInput = readonly [string, string] | { username: string; password: string };
 
 export interface FetchRequestOptions extends FetcherConfigurationInput {
   method?: string;
   headers?: HeadersInit;
   params?: Record<string, QueryValue>;
   cookies?: CookieInput;
+  auth?: AuthInput;
+  retries?: number;
+  retryDelay?: number;
+  retry_delay?: number;
   json?: unknown;
   data?: Record<string, QueryValue> | URLSearchParams | FormData | string | Uint8Array | ArrayBuffer;
   body?: BodyInit;
@@ -17,6 +22,7 @@ export interface FetchRequestOptions extends FetcherConfigurationInput {
   timeout?: number | null;
   stealthyHeaders?: boolean;
   stealthy_headers?: boolean;
+  meta?: Record<string, unknown>;
 }
 
 function headersToRecord(headers: Headers): Record<string, string> {
@@ -109,6 +115,57 @@ function shouldUseStealthHeaders(options: FetchRequestOptions): boolean {
 
 function shouldFollowRedirects(options: FetchRequestOptions): boolean {
   return options.followRedirects ?? options.follow_redirects ?? true;
+}
+
+function getRetryCount(options: FetchRequestOptions): number {
+  return Math.max(1, options.retries ?? 1);
+}
+
+function getRetryDelay(options: FetchRequestOptions): number {
+  return Math.max(0, options.retryDelay ?? options.retry_delay ?? 0);
+}
+
+function encodeBase64(value: string): string {
+  const scopedGlobal = globalThis as typeof globalThis & {
+    btoa?: (input: string) => string;
+    Buffer?: { from(input: string, encoding?: string): { toString(encoding: string): string } };
+  };
+
+  if (typeof scopedGlobal.btoa === "function") {
+    return scopedGlobal.btoa(value);
+  }
+
+  if (scopedGlobal.Buffer != null) {
+    return scopedGlobal.Buffer.from(value, "utf8").toString("base64");
+  }
+
+  throw new Error("No base64 encoder available in this runtime");
+}
+
+function applyAuthHeader(headers: Headers, auth: AuthInput | undefined): void {
+  if (auth == null || headers.has("authorization")) {
+    return;
+  }
+
+  let username: string;
+  let password: string;
+
+  if ("username" in auth) {
+    username = auth.username;
+    password = auth.password;
+  } else {
+    [username, password] = auth;
+  }
+
+  headers.set("authorization", `Basic ${encodeBase64(`${username}:${password}`)}`);
+}
+
+async function sleep(delay: number): Promise<void> {
+  if (delay <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, delay));
 }
 
 function createTimeoutSignal(timeout: number | null | undefined): { signal?: AbortSignal; cleanup: () => void } {
@@ -216,82 +273,109 @@ async function executeFetch(
     applyStealthHeaders(baseHeaders);
   }
 
+  applyAuthHeader(baseHeaders, options.auth);
+
   const body = buildRequestBody(options, baseHeaders);
   const timeout = createTimeoutSignal(options.timeout);
-  const history: ResponseHistoryEntry[] = [];
   const followRedirects = shouldFollowRedirects(options);
-
-  let currentUrl = requestUrl;
-  let finalResponse: globalThis.Response | null = null;
-  let finalRequestHeaders: Headers | null = null;
-  let finalCookies: ResponseCookie[] = [];
+  const retryCount = getRetryCount(options);
+  const retryDelay = getRetryDelay(options);
 
   try {
-    for (let redirectCount = 0; redirectCount < 20; redirectCount += 1) {
-      const requestHeaders = new Headers(baseHeaders);
-      setCookieHeader(requestHeaders, cookieJar, options.cookies);
+    let lastError: unknown;
 
-      const nativeResponse = await fetch(currentUrl, {
-        method,
-        headers: requestHeaders,
-        body,
-        redirect: "manual",
-        signal: timeout.signal,
-      });
+    for (let attempt = 0; attempt < retryCount; attempt += 1) {
+      const history: ResponseHistoryEntry[] = [];
+      let currentUrl = requestUrl;
+      let finalResponse: globalThis.Response | null = null;
+      let finalRequestHeaders: Headers | null = null;
+      let finalCookies: ResponseCookie[] = [];
 
-      const responseHeaders = headersToRecord(nativeResponse.headers);
-      const responseCookies = extractCookies(nativeResponse.headers);
-      persistCookies(cookieJar, responseCookies);
+      try {
+        for (let redirectCount = 0; redirectCount < 20; redirectCount += 1) {
+          const requestHeaders = new Headers(baseHeaders);
+          setCookieHeader(requestHeaders, cookieJar, options.cookies);
 
-      if (followRedirects && isRedirectStatus(nativeResponse.status)) {
-        const location = nativeResponse.headers.get("location");
-        history.push({
-          url: currentUrl,
-          status: nativeResponse.status,
-          reason: nativeResponse.statusText,
-          headers: responseHeaders,
-        });
+          const nativeResponse = await fetch(currentUrl, {
+            method,
+            headers: requestHeaders,
+            body,
+            redirect: "manual",
+            signal: timeout.signal,
+          });
 
-        if (location == null) {
+          const responseHeaders = headersToRecord(nativeResponse.headers);
+          const responseCookies = extractCookies(nativeResponse.headers);
+          persistCookies(cookieJar, responseCookies);
+
+          if (followRedirects && isRedirectStatus(nativeResponse.status)) {
+            const location = nativeResponse.headers.get("location");
+            history.push({
+              url: currentUrl,
+              status: nativeResponse.status,
+              reason: nativeResponse.statusText,
+              headers: responseHeaders,
+            });
+
+            if (location == null) {
+              finalResponse = nativeResponse;
+              finalRequestHeaders = requestHeaders;
+              finalCookies = responseCookies;
+              break;
+            }
+
+            currentUrl = resolveRedirectUrl(location, currentUrl);
+            continue;
+          }
+
           finalResponse = nativeResponse;
           finalRequestHeaders = requestHeaders;
           finalCookies = responseCookies;
           break;
         }
+      } catch (error) {
+        lastError = error;
+        if (attempt >= retryCount - 1) {
+          throw error;
+        }
 
-        currentUrl = resolveRedirectUrl(location, currentUrl);
+        await sleep(retryDelay);
         continue;
       }
 
-      finalResponse = nativeResponse;
-      finalRequestHeaders = requestHeaders;
-      finalCookies = responseCookies;
-      break;
+      if (finalResponse == null || finalRequestHeaders == null) {
+        lastError = new Error("Failed to resolve final fetch response");
+        if (attempt >= retryCount - 1) {
+          throw lastError;
+        }
+
+        await sleep(retryDelay);
+        continue;
+      }
+
+      const content = new Uint8Array(await finalResponse.arrayBuffer());
+      const selectorOptions = fetcherType.generateSelectorOptions(options);
+      const responseUrl = selectorOptions.url || finalResponse.url || currentUrl;
+
+      return new Response({
+        url: responseUrl,
+        content,
+        status: finalResponse.status,
+        reason: finalResponse.statusText,
+        headers: headersToRecord(finalResponse.headers),
+        requestHeaders: headersToRecord(finalRequestHeaders),
+        method,
+        cookies: finalCookies,
+        history,
+        meta: options.meta,
+        adaptive: selectorOptions.adaptive,
+        adaptiveStorage: selectorOptions.adaptiveStorage,
+        keepComments: selectorOptions.keepComments,
+        keepCdata: selectorOptions.keepCdata,
+      });
     }
 
-    if (finalResponse == null || finalRequestHeaders == null) {
-      throw new Error("Failed to resolve final fetch response");
-    }
-
-    const content = new Uint8Array(await finalResponse.arrayBuffer());
-    const selectorOptions = fetcherType.generateSelectorOptions(options);
-    const responseUrl = selectorOptions.url || finalResponse.url || currentUrl;
-
-    return new Response({
-      url: responseUrl,
-      content,
-      status: finalResponse.status,
-      reason: finalResponse.statusText,
-      headers: headersToRecord(finalResponse.headers),
-      requestHeaders: headersToRecord(finalRequestHeaders),
-      method,
-      cookies: finalCookies,
-      history,
-      adaptive: selectorOptions.adaptive,
-      adaptiveStorage: selectorOptions.adaptiveStorage,
-      keepComments: selectorOptions.keepComments,
-      keepCdata: selectorOptions.keepCdata,
-    });
+    throw lastError instanceof Error ? lastError : new Error("Failed to fetch resource");
   } finally {
     timeout.cleanup();
   }

@@ -1,57 +1,63 @@
 # v1 Index
 
-## 愿景
+## Goal
 
-- 主愿景：`docs/prd/VISION.md`
-- 主 PRD：`docs/prd/PRD-0001-scrapling-parity.md`
+用版本化计划把 Scrapling 的 Python 能力体系持续迁移到 TypeScript，并保持“PRD → 计划 → 测试 → 代码 → 验证”可追溯。
 
-## 里程碑
+## Milestones
 
-| 里程碑 | 范围 | DoD | 验证命令 | 状态 |
-|---|---|---|---|---|
-| M0 Foundation | workspace、runtime descriptor、`Selector` + CSS 基线 | `pnpm build/typecheck/test` 全绿；Node/WebExt 导出测试通过；解析器基线测试通过 | `pnpm test` / `pnpm build` / `pnpm typecheck` | done |
-| M1 Parser Core | XPath、文本查找、导航、handler | 对应 parser 合同测试通过 | `pnpm --filter @scrapling-ts/core test` | doing |
-| M2 Adaptive + Fetchers | adaptive、静态/动态/stealth、代理轮换 | fetchers/adaptive 测试与 E2E 通过 | `pnpm --filter ... test` | doing |
-| M3 Spiders | scheduler/engine/session/checkpoint | spiders 测试通过 | `pnpm --filter ... test` | todo |
-| M4 CLI + MCP | CLI、shell、extract、MCP | CLI/AI 测试通过 | `pnpm --filter ... test` | todo |
+| Milestone | Plan | Scope | Status |
+| --- | --- | --- | --- |
+| M0 Foundation | `docs/plan/v1-foundation.md` | workspace、三层包边界、parser baseline、runtime descriptor | 已完成 |
+| M1 Parser Core | `docs/plan/v1-parser-core.md` | XPath、文本/正则查找、导航、handlers、兼容语义 | 进行中 |
+| M2 Adaptive + Fetchers | `docs/plan/v1-adaptive-fetchers.md` | adaptive relocation、静态 fetchers、动态 fetchers、stealth、代理轮换 | 进行中 |
+| M3 Spiders + CLI + AI | `docs/plan/v1-spiders-cli-ai.md` | spiders、CLI、MCP/AI 能力 | 待开始 |
 
-## 计划索引
+## Requirement Trace Matrix
 
-- `docs/plan/v1-foundation.md`
-- `docs/plan/v1-parser-core.md`
-- `docs/plan/v1-adaptive-fetchers.md`
-- `docs/plan/v1-spiders-cli-ai.md`
+| Requirement | Summary | Plan | Status |
+| --- | --- | --- | --- |
+| `REQ-0001-001` | TypeScript workspace 与包边界 | `v1-foundation` | 已完成 |
+| `REQ-0001-002` | Node / Chrome 插件运行时描述 | `v1-foundation` | 已完成 |
+| `REQ-0001-003` | Selector + CSS baseline | `v1-foundation` | 已完成 |
+| `REQ-0001-004` | parser parity 核心语义 | `v1-parser-core` | 进行中 |
+| `REQ-0001-005` | adaptive relocation | `v1-adaptive-fetchers` | 当前切片已完成核心合同 |
+| `REQ-0001-006` | 静态 fetchers 与 session | `v1-adaptive-fetchers` | 当前切片已完成核心合同 |
+| `REQ-0001-007` | `DynamicFetcher` | `v1-adaptive-fetchers` | 待实现 |
+| `REQ-0001-008` | `StealthyFetcher` | `v1-adaptive-fetchers` | 待实现 |
+| `REQ-0001-009` | 代理轮换与响应标准化 | `v1-adaptive-fetchers` | 部分完成，代理轮换待补 |
+| `REQ-0001-010` | Spider 核心对象 | `v1-spiders-cli-ai` | 待开始 |
+| `REQ-0001-011` | Node CLI / shell | `v1-spiders-cli-ai` | 待开始 |
+| `REQ-0001-012` | MCP / AI 提取能力 | `v1-spiders-cli-ai` | 待开始 |
+| `REQ-0001-013` | 镜像合同测试矩阵 | 跨全部计划 | 进行中 |
+| `REQ-0001-014` | 文档与追溯机制 | `v1-foundation` | 已完成基础矩阵 |
 
-## 追溯矩阵
+## 已完成切片
 
-| Req ID | v1 Plan | 测试/命令 | 证据 | 状态 |
-|---|---|---|---|---|
-| REQ-0001-001 | `v1-foundation` | `pnpm test ; pnpm build ; pnpm typecheck` | 2026-03-08 本地执行通过 | done |
-| REQ-0001-002 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
-| REQ-0001-003 | `v1-foundation` | `packages/core/src/__tests__/selector-baseline.test.ts` | 2026-03-08 `3/3` tests passed | done |
-| REQ-0001-004 | `v1-parser-core` | `packages/core/src/__tests__/selector-parser-core.test.ts` + `packages/core/src/__tests__/parser-advanced.test.ts` + `packages/core/src/__tests__/selector-compatibility.test.ts` + `packages/core/src/__tests__/selector-similar-errors.test.ts` + `packages/core/src/__tests__/selector-helper-parity.test.ts` + `packages/core/src/__tests__/selector-utilities.test.ts` + `packages/core/src/__tests__/selector-find-helpers.test.ts` | 2026-03-08 parser-core 当前累计 `39/39` passed（text/regex/XPath/navigation/handler/selector-generation/attributes advanced/compatibility/similar/error/helper parity/collections/aliases/utilities/pseudo-attr/find-helpers/xpath-vars/css-contains/comments-cdata） | doing |
-| REQ-0001-005 | `v1-adaptive-fetchers` | `packages/core/src/__tests__/adaptive-relocation.test.ts` + `packages/core/src/__tests__/adaptive-storage.test.ts` | 2026-03-08 adaptive relocation + storage abstraction `4/4` passed（结构变化重定位 / 显式 identifier / 误命中负例 / 注入式 storage 隔离） | doing |
-| REQ-0001-006 | `v1-adaptive-fetchers` | `packages/core/src/__tests__/fetcher-base.test.ts` + `packages/node/src/__tests__/fetcher-static.test.ts` + `packages/webext/src/__tests__/fetcher-static.test.ts` | 2026-03-08 static fetcher + session baseline `13/13` passedï¼BaseFetcher config / Response contract / Node+WebExt GET+POST / FetcherClient + AsyncFetcherClient cookie reuse / redirect historyï¼ | doing |
-| REQ-0001-007 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/dynamic-fetcher*.test.ts` + WebExt E2E | — | todo |
-| REQ-0001-008 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/stealth-fetcher*.test.ts` + adapter tests | — | todo |
-| REQ-0001-009 | `v1-adaptive-fetchers` | `packages/node/src/__tests__/proxy-rotation*.test.ts` | — | todo |
-| REQ-0001-010 | `v1-spiders-cli-ai` | `packages/node/src/__tests__/spiders*.test.ts` | — | todo |
-| REQ-0001-011 | `v1-spiders-cli-ai` | `packages/node/src/__tests__/cli*.test.ts` | — | todo |
-| REQ-0001-012 | `v1-spiders-cli-ai` | `packages/node/src/__tests__/mcp*.test.ts` | — | todo |
-| REQ-0001-013 | `v1-spiders-cli-ai` | `docs/plan/v1-index.md` trace 全链路 | — | todo |
-| REQ-0001-014 | `v1-foundation` + all | `packages/node/src/__tests__/exports.test.ts` + `packages/webext/src/__tests__/exports.test.ts` + `packages/node/src/__tests__/adaptive-storage.test.ts` + `packages/webext/src/__tests__/adaptive-storage.test.ts` | 2026-03-08 Node `3/3` passed；WebExt `3/3` passed（runtime exports + adaptive storage backend） | done |
+- `v1: feat: adaptive relocation baseline`
+- `v1: feat: adaptive storage abstraction`
+- `v1: feat: static fetcher baseline`
+- `v1: feat: fetcher session baseline`
+- `v1: feat: response redirect history`
+- `v1: feat: fetcher retry auth meta`
 
-## ECN 索引
+## 当前能力快照
 
-- 本轮暂无 ECN。
+- parser core 已覆盖：XPath baseline、文本/正则查找、`TextHandler` / `AttributesHandler`、导航语义、`find/find_all`、`::text`、`::attr(name)`、`findSimilar()`、基础兼容别名。
+- adaptive 已覆盖：快照保存、显式 `identifier`、组合选择器拆分、自定义 storage、误命中保护。
+- static fetchers 已覆盖：`Fetcher` / `AsyncFetcher` / `FetcherClient` / `AsyncFetcherClient`、cookie jar、默认配置复用、redirect history、Basic Auth、重试与 `meta` 透传。
+- runtime 适配已覆盖：Node 与 Chrome 插件均可导入同一套 core API，并在各自包侧暴露对应适配能力。
 
-## 差异列表
+## 当前验证基线
 
-- å½åå·²å®æ foundationãparser baselineï¼å¹¶å·²è¿å¥ adaptive + static fetcher + session baselineï¼å·²æ¯æåå­å¿«ç§ãç»åéæ©å¨æåãæ¾å¼ `identifier`ãè¯¯å½ä¸­ä¿æ¤ãå¯æ³¨å¥ adaptive storageï¼core memory / node file / web storageï¼ï¼ä»¥å `BaseFetcher/Response/Fetcher/AsyncFetcher/FetcherClient/AsyncFetcherClient` çæå°éæè¯·æ±ãsession ä¸ redirect history é­ç¯ï¼dynamic/stealthãproxyãspidersãCLIãMCP ä»å¾ç»§ç»­æ¨è¿
-¥ adaptive + static fetcher + session baselineï¼å·²æ¯æå
-å­å¿«ç
-§ãç»åéæ©å¨æåãæ¾å¼ `identifier`ãè¯¯å½ä¸­ä¿æ¤ãå¯æ³¨å
-¥ adaptive storageï¼core memory / node file / web storageï¼ï¼ä»¥å `BaseFetcher/Response/Fetcher/AsyncFetcher/FetcherClient/AsyncFetcherClient` çæå°éæè¯·æ±ä¸ session é­ç¯ï¼dynamic/stealthãproxyãspidersãCLIãMCP ä»å¾
-ç»§ç»­æ¨è¿
-- `parser-core` 已完成文本查找、正则查找、XPath 基线与变量绑定、父子兄弟祖先导航、`TextHandler`/`TextHandlers` 高级语义、selector generation、selector list `first/last/length/search/filter/get/getall`、`::text`/`::attr(name)`、source-style snake_case aliases、`path/siblings/prettify/body/urljoin/get_all_text` utilities、`find`/`find_all` helpers、CSS `:contains()` / `:not(:contains())` 合同覆盖、`keep_comments` / `keep_cdata` 行为、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面；仍缺更深层 helper parity 与 adaptive 相关边界
-- Chrome 插件侧动态/stealth 抓取的具体桥接方案已在 PRD 锁定方向，但尚未编码落地
+- `pnpm test`
+- `pnpm build`
+- `pnpm typecheck`
+- `pnpm --filter @scrapling-ts/node test -- fetcher-static.test.ts`
+- `pnpm --filter @scrapling-ts/webext test -- fetcher-static.test.ts`
+
+## Next Slice
+
+- `DynamicFetcher` 的 Node / Chrome 插件桥接方案落地。
+- 统一动态响应对象与静态 `Response` 语义。
+- 为 `StealthyFetcher` 与代理轮换预留清晰的跨运行时抽象。
