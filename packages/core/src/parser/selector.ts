@@ -275,12 +275,23 @@ export class Selector {
 
   css(query: string): SelectorCollection<Selector | TextSelection> {
     const textMode = query.endsWith("::text");
-    const normalizedQuery = textMode ? query.slice(0, -6) : query;
+    const attrMatch = query.match(/::attr\(([^)]+)\)$/);
+    const attrMode = attrMatch != null;
+    const normalizedQuery = textMode
+      ? query.slice(0, -6)
+      : attrMode
+        ? query.slice(0, -(attrMatch?.[0].length ?? 0))
+        : query;
     validateCssQuery(normalizedQuery);
     const matches = Array.from(this.#node.querySelectorAll(normalizedQuery));
 
     if (textMode) {
       return createCollection(matches.map((element) => new TextSelection(element.textContent ?? "")));
+    }
+
+    if (attrMode) {
+      const attrName = attrMatch?.[1].trim() ?? "";
+      return createCollection(matches.map((element) => new TextSelection(element.getAttribute(attrName) ?? "")));
     }
 
     return createCollection(

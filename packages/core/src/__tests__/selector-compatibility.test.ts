@@ -71,4 +71,12 @@ describe("selector compatibility slice", () => {
     expect(texts.getall()).toBeInstanceOf(TextHandlers);
     expect(texts.getall()[0]).toContain("totalProducts");
   });
+
+  test("css(::attr(name)) serializes attribute values through collection helpers", () => {
+    const page = new Selector(html);
+    const attrs = page.css("section::attr(schema)");
+
+    expect(String(attrs.get())).toBe('{"jsonable":"data"}');
+    expect(attrs.getall()).toEqual(['{"jsonable":"data"}']);
+  });
 });
