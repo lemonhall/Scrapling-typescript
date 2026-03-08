@@ -47,7 +47,8 @@
 - 统一 `Response` 响应对象
 - `Fetcher` / `AsyncFetcher` 静态请求基线
 - `FetcherClient` / `AsyncFetcherClient` session + cookie å¤ç¨
-- Node ä¸ Chrome æä»¶å±äº«åä¸å¥éæ fetcher / session åå
+- Node ä¸ Chrome æä»¶å±äº«åä¸å¥éæ fetcher / session / redirect-history åå
+±äº«åä¸å¥éæ fetcher / session åå
 已补齐的 advanced parser 能力：
 
 - `AttributesHandler` 的只读代理索引访问、`keys/values/items/jsonString/searchValues`
@@ -59,7 +60,7 @@
 - `find/find_all`、XPath variables、`path/siblings/prettify/body/urljoin/get_all_text`
 - CSS `:contains()` / `:not(:contains())`、`keep_comments` / `keep_cdata`
 - adaptive relocation baseline（内存快照、组合选择器拆分、显式 `identifier`、storage abstraction）
-- `BaseFetcher` / `Response` / `Fetcher` / `AsyncFetcher` 静态抓取基线
+- `BaseFetcher` / `Response` / `Fetcher` / `AsyncFetcher` / `FetcherClient` / `AsyncFetcherClient` éææåãsession ä¸ redirect history åºçº¿
 - `BaseFetcher` / `Response` / `Fetcher` / `AsyncFetcher` / `FetcherClient` / `AsyncFetcherClient` éææåä¸ session åºçº¿
 ## 关键文档
 

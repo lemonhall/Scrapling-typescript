@@ -45,10 +45,14 @@
 2. 已完成：adaptive 合同测试覆盖正例、显式 `identifier`、误命中负例
 3. 已完成：抽象 `adaptiveStorage` 注入接口，并接入 Node 文件后端 / Web Storage 后端
 4. 已完成：静态 `Fetcher` / `AsyncFetcher` baseline（`get/post/put/delete`、`BaseFetcher` 配置面、统一 `Response`）
-5. å·²å®æï¼`FetcherClient` / `AsyncFetcherClient` ä¼è¯å¤ç¨ãé»è®¤å¤´åå¹¶ä¸ cookies æä¹å
+5. å·²å®æï¼`FetcherClient` / `AsyncFetcherClient` ä¼è¯å¤ç¨ãé»è®¤å¤´åå¹¶ä¸ cookies æä¹
+6. ä¸ä¸åï¼è¡¥ retries / auth / request meta ç­æ´å®æ´ååºè§èå
 6. ä¸ä¸åï¼è¡¥æ´å®æ´ååºè§èåï¼history / redirects / retries / authï¼
 7. åç»­ï¼å¨æ/stealth fetchers ä¸ä»£çè½®æ¢
-8. éç¨ç¢æ¶å£ï¼Node/WebExt ééå±æµè¯ + å¿è¦ E2E å¨ç»¿
+8. éç¨ç¢æ¶å£ï¼Node/WebExt éé
+å±æµè¯ + å¿
+è¦ E2E å
+¨ç»¿
 ## Current Slice Evidence
 
 - ç®æ éæ±ï¼`REQ-0001-005` + `REQ-0001-006`
@@ -61,11 +65,15 @@
   - 组合选择器如 `#p1, #p2` 会拆成单 selector 分别保存
   - 重定位评分当前依据 `tag`、直接文本、聚合文本、属性值重合，并设置最小命中阈值避免误命中
   - `packages/core` 导出 `createMemoryAdaptiveStorage` 与 `createWebStorageAdaptiveStorage`
-  - `packages/node` 导出 `createFileAdaptiveStorage`，可跨 selector 实例持久化快照
-  - `packages/core` å¯¼åº `BaseFetcher`ã`Response`ã`Fetcher`ã`AsyncFetcher`ã`FetcherClient`ã`AsyncFetcherClient`
+  - Node ä¸ WebExt åé½å¯ç´æ¥å¤ç¨ç¸åéæ fetcher ä¸ session ååï¼å·²åå« redirect history è®°å½
+  - å°æªå®ç° retries / auth / request meta ç­æ´å®æ´å½ä¸å
   - éæ fetcher å½åæ¯æ `get/post/put/delete`ã`params`ã`data`ã`json`ã`headers`ã`cookies`ã`timeout`ã`follow_redirects`ã`stealthy_headers`
-  - `FetcherClient` / `AsyncFetcherClient` å½åæ¯æé»è®¤è¯·æ±éç½®å¤ç¨ãcookie jar æä¹åä¸æ¸ç
-  - Node ä¸ WebExt åé½å¯ç´æ¥å¤ç¨ç¸åéæ fetcher ä¸ session åå
+  - `FetcherClient` / `AsyncFetcherClient` å½åæ¯æé»è®¤è¯·æ±é
+ç½®å¤ç¨ãcookie jar æä¹
+åä¸æ¸
+ç
+  - Node ä¸ WebExt å
+é½å¯ç´æ¥å¤ç¨ç¸åéæ fetcher ä¸ session åå
   - å°æªå®ç°æ´å®æ´ç response history / redirects / retries / auth å½ä¸å
   - å°æªå®ç°å¨æ/stealth fetchers ä¸ä»£çè½®æ¢
 

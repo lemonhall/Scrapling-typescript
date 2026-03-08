@@ -36,6 +36,12 @@ describe("webext static fetcher baseline", () => {
         return;
       }
 
+      if (url.pathname === "/redirect") {
+        response.writeHead(302, { location: "/html" });
+        response.end();
+        return;
+      }
+
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
         method: request.method,
@@ -92,6 +98,19 @@ describe("webext static fetcher baseline", () => {
       cookie: "",
       defaultHeader: "",
     });
+  });
+
+  test("Fetcher records redirect history when following redirects", async () => {
+    const response = await Fetcher.get(`${baseUrl}/redirect`, { follow_redirects: true, timeout: null });
+
+    expect(response.status).toBe(200);
+    expect(response.url).toBe(`${baseUrl}/html`);
+    expect(response.history).toHaveLength(1);
+    expect(response.history[0]).toMatchObject({
+      status: 302,
+      url: `${baseUrl}/redirect`,
+    });
+    expect(String(response.css("h1").first?.text)).toBe("WebExt Fetcher");
   });
 
   test("FetcherClient persists cookies and default headers across requests", async () => {

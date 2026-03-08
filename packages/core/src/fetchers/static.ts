@@ -1,5 +1,5 @@
 import { BaseFetcher, type FetcherConfigurationInput } from "./base.js";
-import { Response, type ResponseCookie } from "./response.js";
+import { Response, type ResponseCookie, type ResponseHistoryEntry } from "./response.js";
 
 type QueryValue = string | number | boolean;
 type CookieInput = Record<string, QueryValue> | ResponseCookie[] | string;
@@ -194,6 +194,14 @@ function persistCookies(cookieJar: Map<string, string> | undefined, cookies: Res
   }
 }
 
+function isRedirectStatus(status: number): boolean {
+  return status >= 300 && status < 400;
+}
+
+function resolveRedirectUrl(location: string, currentUrl: string): string {
+  return new URL(location, currentUrl).toString();
+}
+
 async function executeFetch(
   fetcherType: typeof BaseFetcher,
   url: string,
@@ -202,43 +210,83 @@ async function executeFetch(
 ): Promise<Response> {
   const requestUrl = appendParams(url, options.params);
   const method = (options.method ?? "GET").toUpperCase();
-  const headers = options.headers instanceof Headers ? new Headers(options.headers) : new Headers(options.headers ?? {});
+  const baseHeaders = options.headers instanceof Headers ? new Headers(options.headers) : new Headers(options.headers ?? {});
 
   if (shouldUseStealthHeaders(options)) {
-    applyStealthHeaders(headers);
+    applyStealthHeaders(baseHeaders);
   }
 
-  setCookieHeader(headers, cookieJar, options.cookies);
-
-  const body = buildRequestBody(options, headers);
+  const body = buildRequestBody(options, baseHeaders);
   const timeout = createTimeoutSignal(options.timeout);
+  const history: ResponseHistoryEntry[] = [];
+  const followRedirects = shouldFollowRedirects(options);
+
+  let currentUrl = requestUrl;
+  let finalResponse: globalThis.Response | null = null;
+  let finalRequestHeaders: Headers | null = null;
+  let finalCookies: ResponseCookie[] = [];
 
   try {
-    const nativeResponse = await fetch(requestUrl, {
-      method,
-      headers,
-      body,
-      redirect: shouldFollowRedirects(options) ? "follow" : "manual",
-      signal: timeout.signal,
-    });
+    for (let redirectCount = 0; redirectCount < 20; redirectCount += 1) {
+      const requestHeaders = new Headers(baseHeaders);
+      setCookieHeader(requestHeaders, cookieJar, options.cookies);
 
-    const responseCookies = extractCookies(nativeResponse.headers);
-    persistCookies(cookieJar, responseCookies);
+      const nativeResponse = await fetch(currentUrl, {
+        method,
+        headers: requestHeaders,
+        body,
+        redirect: "manual",
+        signal: timeout.signal,
+      });
 
-    const content = new Uint8Array(await nativeResponse.arrayBuffer());
+      const responseHeaders = headersToRecord(nativeResponse.headers);
+      const responseCookies = extractCookies(nativeResponse.headers);
+      persistCookies(cookieJar, responseCookies);
+
+      if (followRedirects && isRedirectStatus(nativeResponse.status)) {
+        const location = nativeResponse.headers.get("location");
+        history.push({
+          url: currentUrl,
+          status: nativeResponse.status,
+          reason: nativeResponse.statusText,
+          headers: responseHeaders,
+        });
+
+        if (location == null) {
+          finalResponse = nativeResponse;
+          finalRequestHeaders = requestHeaders;
+          finalCookies = responseCookies;
+          break;
+        }
+
+        currentUrl = resolveRedirectUrl(location, currentUrl);
+        continue;
+      }
+
+      finalResponse = nativeResponse;
+      finalRequestHeaders = requestHeaders;
+      finalCookies = responseCookies;
+      break;
+    }
+
+    if (finalResponse == null || finalRequestHeaders == null) {
+      throw new Error("Failed to resolve final fetch response");
+    }
+
+    const content = new Uint8Array(await finalResponse.arrayBuffer());
     const selectorOptions = fetcherType.generateSelectorOptions(options);
-    const responseUrl = selectorOptions.url || nativeResponse.url || requestUrl;
+    const responseUrl = selectorOptions.url || finalResponse.url || currentUrl;
 
     return new Response({
       url: responseUrl,
       content,
-      status: nativeResponse.status,
-      reason: nativeResponse.statusText,
-      headers: headersToRecord(nativeResponse.headers),
-      requestHeaders: headersToRecord(headers),
+      status: finalResponse.status,
+      reason: finalResponse.statusText,
+      headers: headersToRecord(finalResponse.headers),
+      requestHeaders: headersToRecord(finalRequestHeaders),
       method,
-      cookies: responseCookies,
-      history: [],
+      cookies: finalCookies,
+      history,
       adaptive: selectorOptions.adaptive,
       adaptiveStorage: selectorOptions.adaptiveStorage,
       keepComments: selectorOptions.keepComments,
