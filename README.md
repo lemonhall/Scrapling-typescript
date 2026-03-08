@@ -41,6 +41,13 @@
 - `adaptiveStorage` 注入接口
 - Node 文件后端与 Web Storage 后端
 
+正在推进的第四个 slice：
+
+- `BaseFetcher` 配置面
+- 统一 `Response` 响应对象
+- `Fetcher` / `AsyncFetcher` 静态请求基线
+- Node 与 Chrome 插件共享同一套静态 fetcher 合同
+
 已补齐的 advanced parser 能力：
 
 - `AttributesHandler` 的只读代理索引访问、`keys/values/items/jsonString/searchValues`
@@ -52,6 +59,7 @@
 - `find/find_all`、XPath variables、`path/siblings/prettify/body/urljoin/get_all_text`
 - CSS `:contains()` / `:not(:contains())`、`keep_comments` / `keep_cdata`
 - adaptive relocation baseline（内存快照、组合选择器拆分、显式 `identifier`、storage abstraction）
+- `BaseFetcher` / `Response` / `Fetcher` / `AsyncFetcher` 静态抓取基线
 
 ## 关键文档
 
