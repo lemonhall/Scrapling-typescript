@@ -2,11 +2,13 @@ import { BaseFetcher, type FetcherConfigurationInput } from "./base.js";
 import { Response, type ResponseCookie } from "./response.js";
 
 type QueryValue = string | number | boolean;
+type CookieInput = Record<string, QueryValue> | ResponseCookie[] | string;
 
 export interface FetchRequestOptions extends FetcherConfigurationInput {
   method?: string;
   headers?: HeadersInit;
   params?: Record<string, QueryValue>;
+  cookies?: CookieInput;
   json?: unknown;
   data?: Record<string, QueryValue> | URLSearchParams | FormData | string | Uint8Array | ArrayBuffer;
   body?: BodyInit;
@@ -123,50 +125,133 @@ function createTimeoutSignal(timeout: number | null | undefined): { signal?: Abo
   };
 }
 
+function mergeHeaders(defaultHeaders: HeadersInit | undefined, requestHeaders: HeadersInit | undefined): Headers {
+  const headers = new Headers(defaultHeaders ?? {});
+  const overrides = new Headers(requestHeaders ?? {});
+
+  for (const [key, value] of overrides.entries()) {
+    headers.set(key, value);
+  }
+
+  return headers;
+}
+
+function mergeRequestOptions(defaults: FetchRequestOptions, request: FetchRequestOptions): FetchRequestOptions {
+  return {
+    ...defaults,
+    ...request,
+    headers: mergeHeaders(defaults.headers, request.headers),
+    params: { ...(defaults.params ?? {}), ...(request.params ?? {}) },
+  };
+}
+
+function normalizeCookies(cookies: CookieInput | undefined): ResponseCookie[] {
+  if (cookies == null) {
+    return [];
+  }
+
+  if (typeof cookies === "string") {
+    return cookies
+      .split(";")
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0)
+      .map((part) => part.split("="))
+      .filter((parts) => parts.length >= 2)
+      .map(([name, ...rest]) => ({ name, value: rest.join("=") }));
+  }
+
+  if (Array.isArray(cookies)) {
+    return cookies.map((cookie) => ({ name: cookie.name, value: cookie.value }));
+  }
+
+  return Object.entries(cookies).map(([name, value]) => ({ name, value: String(value) }));
+}
+
+function setCookieHeader(headers: Headers, cookieJar: Map<string, string> | undefined, cookies: CookieInput | undefined): void {
+  if (headers.has("cookie")) {
+    return;
+  }
+
+  const values = new Map<string, string>(cookieJar?.entries() ?? []);
+  for (const cookie of normalizeCookies(cookies)) {
+    values.set(cookie.name, cookie.value);
+  }
+
+  if (values.size === 0) {
+    return;
+  }
+
+  headers.set("cookie", Array.from(values.entries()).map(([name, value]) => `${name}=${value}`).join("; "));
+}
+
+function persistCookies(cookieJar: Map<string, string> | undefined, cookies: ResponseCookie[]): void {
+  if (cookieJar == null) {
+    return;
+  }
+
+  for (const cookie of cookies) {
+    cookieJar.set(cookie.name, cookie.value);
+  }
+}
+
+async function executeFetch(
+  fetcherType: typeof BaseFetcher,
+  url: string,
+  options: FetchRequestOptions,
+  cookieJar?: Map<string, string>,
+): Promise<Response> {
+  const requestUrl = appendParams(url, options.params);
+  const method = (options.method ?? "GET").toUpperCase();
+  const headers = options.headers instanceof Headers ? new Headers(options.headers) : new Headers(options.headers ?? {});
+
+  if (shouldUseStealthHeaders(options)) {
+    applyStealthHeaders(headers);
+  }
+
+  setCookieHeader(headers, cookieJar, options.cookies);
+
+  const body = buildRequestBody(options, headers);
+  const timeout = createTimeoutSignal(options.timeout);
+
+  try {
+    const nativeResponse = await fetch(requestUrl, {
+      method,
+      headers,
+      body,
+      redirect: shouldFollowRedirects(options) ? "follow" : "manual",
+      signal: timeout.signal,
+    });
+
+    const responseCookies = extractCookies(nativeResponse.headers);
+    persistCookies(cookieJar, responseCookies);
+
+    const content = new Uint8Array(await nativeResponse.arrayBuffer());
+    const selectorOptions = fetcherType.generateSelectorOptions(options);
+    const responseUrl = selectorOptions.url || nativeResponse.url || requestUrl;
+
+    return new Response({
+      url: responseUrl,
+      content,
+      status: nativeResponse.status,
+      reason: nativeResponse.statusText,
+      headers: headersToRecord(nativeResponse.headers),
+      requestHeaders: headersToRecord(headers),
+      method,
+      cookies: responseCookies,
+      history: [],
+      adaptive: selectorOptions.adaptive,
+      adaptiveStorage: selectorOptions.adaptiveStorage,
+      keepComments: selectorOptions.keepComments,
+      keepCdata: selectorOptions.keepCdata,
+    });
+  } finally {
+    timeout.cleanup();
+  }
+}
+
 export class Fetcher extends BaseFetcher {
   static async fetch(url: string, options: FetchRequestOptions = {}): Promise<Response> {
-    const requestUrl = appendParams(url, options.params);
-    const method = (options.method ?? "GET").toUpperCase();
-    const headers = new Headers(options.headers ?? {});
-
-    if (shouldUseStealthHeaders(options)) {
-      applyStealthHeaders(headers);
-    }
-
-    const body = buildRequestBody(options, headers);
-    const timeout = createTimeoutSignal(options.timeout);
-
-    try {
-      const nativeResponse = await fetch(requestUrl, {
-        method,
-        headers,
-        body,
-        redirect: shouldFollowRedirects(options) ? "follow" : "manual",
-        signal: timeout.signal,
-      });
-
-      const content = new Uint8Array(await nativeResponse.arrayBuffer());
-      const selectorOptions = this.generateSelectorOptions(options);
-      const responseUrl = selectorOptions.url || nativeResponse.url || requestUrl;
-
-      return new Response({
-        url: responseUrl,
-        content,
-        status: nativeResponse.status,
-        reason: nativeResponse.statusText,
-        headers: headersToRecord(nativeResponse.headers),
-        requestHeaders: headersToRecord(headers),
-        method,
-        cookies: extractCookies(nativeResponse.headers),
-        history: [],
-        adaptive: selectorOptions.adaptive,
-        adaptiveStorage: selectorOptions.adaptiveStorage,
-        keepComments: selectorOptions.keepComments,
-        keepCdata: selectorOptions.keepCdata,
-      });
-    } finally {
-      timeout.cleanup();
-    }
+    return executeFetch(this, url, options);
   }
 
   static get(url: string, options: Omit<FetchRequestOptions, "body" | "data" | "json"> = {}): Promise<Response> {
@@ -187,3 +272,48 @@ export class Fetcher extends BaseFetcher {
 }
 
 export class AsyncFetcher extends Fetcher {}
+
+export class FetcherClient extends BaseFetcher {
+  readonly #defaults: FetchRequestOptions;
+  readonly #cookieJar = new Map<string, string>();
+
+  constructor(defaults: FetchRequestOptions = {}) {
+    super();
+    this.#defaults = {
+      ...defaults,
+      headers: mergeHeaders(undefined, defaults.headers),
+      params: { ...(defaults.params ?? {}) },
+    };
+  }
+
+  get cookies(): ResponseCookie[] {
+    return Array.from(this.#cookieJar.entries()).map(([name, value]) => ({ name, value }));
+  }
+
+  clearCookies(): void {
+    this.#cookieJar.clear();
+  }
+
+  async fetch(url: string, options: FetchRequestOptions = {}): Promise<Response> {
+    const merged = mergeRequestOptions(this.#defaults, options);
+    return executeFetch(this.constructor as typeof BaseFetcher, url, merged, this.#cookieJar);
+  }
+
+  get(url: string, options: Omit<FetchRequestOptions, "body" | "data" | "json"> = {}): Promise<Response> {
+    return this.fetch(url, { ...options, method: "GET" });
+  }
+
+  post(url: string, options: FetchRequestOptions = {}): Promise<Response> {
+    return this.fetch(url, { ...options, method: "POST" });
+  }
+
+  put(url: string, options: FetchRequestOptions = {}): Promise<Response> {
+    return this.fetch(url, { ...options, method: "PUT" });
+  }
+
+  delete(url: string, options: Omit<FetchRequestOptions, "body" | "data" | "json"> = {}): Promise<Response> {
+    return this.fetch(url, { ...options, method: "DELETE" });
+  }
+}
+
+export class AsyncFetcherClient extends FetcherClient {}

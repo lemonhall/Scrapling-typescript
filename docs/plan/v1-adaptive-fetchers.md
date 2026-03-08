@@ -45,15 +45,15 @@
 2. 已完成：adaptive 合同测试覆盖正例、显式 `identifier`、误命中负例
 3. 已完成：抽象 `adaptiveStorage` 注入接口，并接入 Node 文件后端 / Web Storage 后端
 4. 已完成：静态 `Fetcher` / `AsyncFetcher` baseline（`get/post/put/delete`、`BaseFetcher` 配置面、统一 `Response`）
-5. 下一刀：补会话复用、cookies 与更完整响应规范化
-6. 后续：动态/stealth fetchers 与代理轮换
-7. 里程碑收口：Node/WebExt 适配层测试 + 必要 E2E 全绿
-
+5. å·²å®æï¼`FetcherClient` / `AsyncFetcherClient` ä¼è¯å¤ç¨ãé»è®¤å¤´åå¹¶ä¸ cookies æä¹å
+6. ä¸ä¸åï¼è¡¥æ´å®æ´ååºè§èåï¼history / redirects / retries / authï¼
+7. åç»­ï¼å¨æ/stealth fetchers ä¸ä»£çè½®æ¢
+8. éç¨ç¢æ¶å£ï¼Node/WebExt ééå±æµè¯ + å¿è¦ E2E å¨ç»¿
 ## Current Slice Evidence
 
-- 目标需求：`REQ-0001-005`
-- 代码：`packages/core/src/parser/selector.ts`
-- 测试：`packages/core/src/__tests__/adaptive-relocation.test.ts`
+- ç®æ éæ±ï¼`REQ-0001-005` + `REQ-0001-006`
+- ä»£ç ï¼`packages/core/src/parser/selector.ts` + `packages/core/src/fetchers/*.ts`
+- æµè¯ï¼`packages/core/src/__tests__/adaptive-relocation.test.ts` + `packages/core/src/__tests__/adaptive-storage.test.ts` + `packages/core/src/__tests__/fetcher-base.test.ts` + `packages/node/src/__tests__/fetcher-static.test.ts` + `packages/webext/src/__tests__/fetcher-static.test.ts`
 - 当前实现：
   - `css(query, options)` 支持 `adaptive`、`autoSave`、`auto_save`、`identifier`
   - `SelectorOptions` 支持注入 `adaptiveStorage` / `adaptive_storage`
@@ -62,12 +62,12 @@
   - 重定位评分当前依据 `tag`、直接文本、聚合文本、属性值重合，并设置最小命中阈值避免误命中
   - `packages/core` 导出 `createMemoryAdaptiveStorage` 与 `createWebStorageAdaptiveStorage`
   - `packages/node` 导出 `createFileAdaptiveStorage`，可跨 selector 实例持久化快照
-  - `packages/core` 导出 `BaseFetcher`、`Response`、`Fetcher`、`AsyncFetcher`
-  - 静态 fetcher 当前支持 `get/post/put/delete`、`params`、`data`、`json`、`headers`、`timeout`、`follow_redirects`、`stealthy_headers`
-  - Node 与 WebExt 包都可直接复用相同静态 fetcher 合同
-- 当前非目标：
-  - 尚未实现静态会话复用与 cookies 管理
-  - 尚未实现动态/stealth fetchers 与代理轮换
+  - `packages/core` å¯¼åº `BaseFetcher`ã`Response`ã`Fetcher`ã`AsyncFetcher`ã`FetcherClient`ã`AsyncFetcherClient`
+  - éæ fetcher å½åæ¯æ `get/post/put/delete`ã`params`ã`data`ã`json`ã`headers`ã`cookies`ã`timeout`ã`follow_redirects`ã`stealthy_headers`
+  - `FetcherClient` / `AsyncFetcherClient` å½åæ¯æé»è®¤è¯·æ±éç½®å¤ç¨ãcookie jar æä¹åä¸æ¸ç
+  - Node ä¸ WebExt åé½å¯ç´æ¥å¤ç¨ç¸åéæ fetcher ä¸ session åå
+  - å°æªå®ç°æ´å®æ´ç response history / redirects / retries / auth å½ä¸å
+  - å°æªå®ç°å¨æ/stealth fetchers ä¸ä»£çè½®æ¢
 
 ## Risks
 

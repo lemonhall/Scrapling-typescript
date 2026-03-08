@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 
-import { AsyncFetcher, Fetcher } from "../index.js";
+import { AsyncFetcher, AsyncFetcherClient, Fetcher, FetcherClient } from "../index.js";
 
 describe("node static fetcher baseline", () => {
   let server: ReturnType<typeof createServer>;
@@ -18,10 +18,21 @@ describe("node static fetcher baseline", () => {
 
       const body = Buffer.concat(bodyChunks).toString("utf8");
       const url = new URL(request.url ?? "/", "http://127.0.0.1");
+      const cookie = request.headers.cookie ?? "";
+      const defaultHeader = request.headers["x-default"] ?? "";
 
       if (url.pathname === "/html") {
         response.writeHead(200, { "content-type": "text/html" });
         response.end("<html><body><h1>Node Fetcher</h1></body></html>");
+        return;
+      }
+
+      if (url.pathname === "/set-cookie") {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "set-cookie": "session=node-cookie; Path=/",
+        });
+        response.end(JSON.stringify({ ok: true }));
         return;
       }
 
@@ -30,6 +41,8 @@ describe("node static fetcher baseline", () => {
         method: request.method,
         query: Object.fromEntries(url.searchParams.entries()),
         body,
+        cookie,
+        defaultHeader,
       }));
     });
 
@@ -77,6 +90,39 @@ describe("node static fetcher baseline", () => {
       method: "POST",
       query: { page: "1" },
       body: "key=value",
+      cookie: "",
+      defaultHeader: "",
+    });
+  });
+
+  test("FetcherClient persists cookies and default headers across requests", async () => {
+    const client = new FetcherClient({
+      headers: { "x-default": "node-client" },
+      timeout: null,
+    });
+
+    await client.get(`${baseUrl}/set-cookie`);
+    const echoed = await client.get(`${baseUrl}/echo-cookie`);
+
+    expect(echoed.status).toBe(200);
+    expect(echoed.json<{ cookie: string; defaultHeader: string }>()).toMatchObject({
+      cookie: "session=node-cookie",
+      defaultHeader: "node-client",
+    });
+  });
+
+  test("AsyncFetcherClient is constructible and reuses the same session defaults", async () => {
+    const client = new AsyncFetcherClient({
+      headers: { "x-default": "node-async-client" },
+      timeout: null,
+    });
+
+    await client.get(`${baseUrl}/set-cookie`);
+    const echoed = await client.get(`${baseUrl}/echo-cookie`);
+
+    expect(echoed.json<{ cookie: string; defaultHeader: string }>()).toMatchObject({
+      cookie: "session=node-cookie",
+      defaultHeader: "node-async-client",
     });
   });
 });

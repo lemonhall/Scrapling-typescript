@@ -94,7 +94,7 @@ export class BaseFetcher {
     }
   }
 
-  protected static generateSelectorOptions(options: SelectorOptions & FetcherConfigurationInput = {}): SelectorOptions {
+  static generateSelectorOptions(options: SelectorOptions & FetcherConfigurationInput = {}): SelectorOptions {
     return {
       adaptive: options.adaptive ?? this.adaptive,
       adaptiveStorage: options.adaptiveStorage ?? options.adaptive_storage ?? this.adaptiveStorage,

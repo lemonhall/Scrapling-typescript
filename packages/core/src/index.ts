@@ -15,6 +15,6 @@ export { Selector } from "./parser/selector.js";
 export type { FetcherConfigurationInput, FetcherDisplayConfig } from "./fetchers/base.js";
 export { BaseFetcher } from "./fetchers/base.js";
 export type { FetchRequestOptions } from "./fetchers/static.js";
-export { AsyncFetcher, Fetcher } from "./fetchers/static.js";
+export { AsyncFetcher, AsyncFetcherClient, Fetcher, FetcherClient } from "./fetchers/static.js";
 export type { ResponseCookie, ResponseHistoryEntry, ResponseInit } from "./fetchers/response.js";
 export { Response } from "./fetchers/response.js";
