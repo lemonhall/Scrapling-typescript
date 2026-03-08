@@ -28,6 +28,8 @@ interface GetAllTextOptions {
   valid_values?: boolean;
 }
 
+type FindArg = string | Iterable<string> | RegExp | ((element: Selector) => boolean) | Record<string, string>;
+
 class TextSelection {
   readonly #value: string;
 
@@ -187,6 +189,26 @@ function collectDirectText(node: SelectorRoot): string {
 
 function createSelector(node: Element, source: Selector): Selector {
   return new Selector(node, { url: source.url, adaptive: source.adaptive });
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return typeof value === "object" && value != null && !Array.isArray(value) && !(value instanceof RegExp);
+}
+
+function isStringIterable(value: unknown): value is Iterable<string> {
+  if (typeof value === "string" || value == null || typeof value !== "object") {
+    return false;
+  }
+
+  if (!(Symbol.iterator in value)) {
+    return false;
+  }
+
+  return Array.from(value as Iterable<unknown>).every((item) => typeof item === "string");
+}
+
+function normalizeFindAttributeName(name: string): string {
+  return name === "class_" ? "class" : name;
 }
 
 function getSearchPool(node: SelectorRoot): Element[] {
@@ -604,6 +626,83 @@ export class Selector {
 
   find_by_regex(pattern: RegExp | string, options: RegexMatchOptions = {}): Selector | Selector[] | null {
     return this.findByRegex(pattern, options);
+  }
+
+  find_all(...args: FindArg[]): SelectorCollection<Selector> {
+    if (args.length === 0) {
+      throw new TypeError("You have to pass something to search with, like tag name(s), tag attributes, or both.");
+    }
+
+    const tags = new Set<string>();
+    const attributes: Record<string, string> = {};
+    const patterns: RegExp[] = [];
+    const predicates: Array<(element: Selector) => boolean> = [];
+
+    for (const arg of args) {
+      if (typeof arg === "string") {
+        tags.add(arg);
+        continue;
+      }
+
+      if (arg instanceof RegExp) {
+        patterns.push(arg);
+        continue;
+      }
+
+      if (typeof arg === "function") {
+        predicates.push(arg);
+        continue;
+      }
+
+      if (isStringIterable(arg)) {
+        for (const tag of arg) {
+          tags.add(tag);
+        }
+        continue;
+      }
+
+      if (isStringRecord(arg)) {
+        for (const [key, value] of Object.entries(arg)) {
+          attributes[normalizeFindAttributeName(key)] = value;
+        }
+      }
+    }
+
+    const selectors: string[] = [];
+    const activeTags = tags.size > 0 ? Array.from(tags) : ["*"];
+
+    for (const tag of activeTags) {
+      let selector = tag;
+      for (const [key, value] of Object.entries(attributes)) {
+        selector += `[${key}="${value.replace(/"/g, '\\"')}"]`;
+      }
+      selectors.push(selector);
+    }
+
+    let results = createCollection(
+      Array.from(new Set(selectors.flatMap((selector) => this.css(selector))))
+        .filter((item): item is Selector => item instanceof Selector),
+    );
+
+    if (selectors.length === 0 || (selectors.length === 1 && selectors[0] === "*")) {
+      results = createCollection(
+        Array.from(this.#node.querySelectorAll("*")).map((element) => createSelector(element, this)),
+      );
+    }
+
+    for (const pattern of patterns) {
+      results = results.filter((element) => element.text.re(pattern).length > 0);
+    }
+
+    for (const predicate of predicates) {
+      results = results.filter(predicate);
+    }
+
+    return results;
+  }
+
+  find(...args: FindArg[]): Selector | null {
+    return this.find_all(...args).first ?? null;
   }
 
   findAncestor(predicate: (node: Selector) => boolean): Selector | null {

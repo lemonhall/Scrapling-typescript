@@ -6,7 +6,7 @@
 
 ## Current Slice
 
-- 2026-03-08 当前已交付：文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`/`TextHandlers` 高级语义、selector generation、selector list `first/last/length/search/filter/get/getall`、`::text`/`::attr(name)`、source-style snake_case aliases、`path/siblings/prettify/body/urljoin/get_all_text` utilities、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面
+- 2026-03-08 当前已交付：文本查找、正则查找、XPath 基线、父子兄弟祖先导航、`TextHandler`/`TextHandlers` 高级语义、selector generation、selector list `first/last/length/search/filter/get/getall`、`::text`/`::attr(name)`、source-style snake_case aliases、`path/siblings/prettify/body/urljoin/get_all_text` utilities、`find`/`find_all` helpers、`findSimilar()`、`Selector.text -> TextHandler` helper parity、基础错误面
 - 更深层 helper parity 与 adaptive 边界继续留在 parser-core / 后续切片
 
 ## PRD Trace
@@ -28,7 +28,7 @@
 ## Acceptance
 
 - 运行 `packages/core` parser 合同测试，退出码为 `0`
-- 关键 fixture 上，XPath、文本、导航、属性与文本 handler 断言全部通过，且 `Selector.text` 具备 handler 风格正则语义，collection 具备 `last/search/filter/get/getall` parity，并兼容 source-style snake_case aliases、selector utility helpers 与 `::attr(name)`
+- 关键 fixture 上，XPath、文本、导航、属性与文本 handler 断言全部通过，且 `Selector.text` 具备 handler 风格正则语义，collection 具备 `last/search/filter/get/getall` parity，并兼容 source-style snake_case aliases、selector utility helpers、`::attr(name)` 与 `find/find_all`
 - 反作弊条款：不得以“只支持 CSS”或“只返回字符串数组”充当 parser parity
 
 ### 当前切片完成证据
@@ -40,6 +40,7 @@
 - `packages/core/src/__tests__/selector-similar-errors.test.ts` 中 `3/3` 通过
 - `packages/core/src/__tests__/selector-helper-parity.test.ts` 中 `3/3` 通过
 - `packages/core/src/__tests__/selector-utilities.test.ts` 中 `2/2` 通过
+- `packages/core/src/__tests__/selector-find-helpers.test.ts` 中 `2/2` 通过
 
 ## Files
 
