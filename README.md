@@ -37,6 +37,9 @@
 - `AttributesHandler` 的只读代理索引访问、`keys/values/items/jsonString/searchValues`
 - `TextHandler` 的 `re` / `reFirst`
 - selector generation getters
+- selector collection 的 `first`
+- `::text` 文本伪选择器、`get()`、`reFirst/re_first`
+- `findSimilar()` 与基础错误校验
 
 ## 关键文档
 

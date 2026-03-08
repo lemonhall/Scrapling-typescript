@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "css-what": "^6.2.2",
     "fontoxpath": "^3.34.0",
     "linkedom": "^0.18.12"
   },

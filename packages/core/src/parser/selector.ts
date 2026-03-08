@@ -1,4 +1,5 @@
 import { parseHTML } from "linkedom";
+import { parse as parseCssSelector } from "css-what";
 import fontoxpath from "fontoxpath";
 
 import { AttributesHandler, TextHandler } from "./handlers.js";
@@ -16,6 +17,24 @@ interface TextMatchOptions {
 interface RegexMatchOptions {
   firstMatch?: boolean;
 }
+
+class TextSelection {
+  readonly #value: string;
+
+  constructor(value: string) {
+    this.#value = value;
+  }
+
+  get(): TextHandler {
+    return new TextHandler(this.#value);
+  }
+
+  toString(): string {
+    return this.#value;
+  }
+}
+
+type SelectorCollection<T> = T[] & { first: T | undefined };
 
 export interface SelectorOptions {
   url?: string;
@@ -99,6 +118,37 @@ function escapeXPathLiteral(value: string): string {
   return value.replace(/"/g, '\\"');
 }
 
+function getClassSignature(element: Element): string {
+  return Array.from(element.classList).sort().join(" ");
+}
+
+function validateXPathQuery(query: string): void {
+  const trimmed = query.trim();
+  if (trimmed.length === 0 || /^[0-9]/.test(trimmed)) {
+    throw new TypeError(`Invalid XPath selector: ${query}`);
+  }
+}
+
+function validateCssQuery(query: string): void {
+  const trimmed = query.trim();
+  if (trimmed.length === 0 || /^[0-9]/.test(trimmed)) {
+    throw new TypeError(`Invalid CSS selector: ${query}`);
+  }
+
+  parseCssSelector(trimmed);
+}
+
+function createCollection<T>(items: T[]): SelectorCollection<T> {
+  const collection = [...items] as SelectorCollection<T>;
+  Object.defineProperty(collection, "first", {
+    configurable: true,
+    enumerable: false,
+    get: () => collection[0],
+  });
+
+  return collection;
+}
+
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
@@ -110,28 +160,42 @@ export class Selector {
       const document = createDocumentFromHtml(input);
       this.#document = document;
       this.#node = document;
-    } else {
+    } else if (input != null && typeof input === "object" && "querySelectorAll" in input) {
       this.#document = resolveDocument(input);
       this.#node = input;
+    } else {
+      throw new TypeError("Selector requires an HTML string, Document, or Element input");
     }
 
     this.url = options.url;
     this.adaptive = options.adaptive ?? false;
   }
 
-  css(query: string): Selector[] {
-    return Array.from(this.#node.querySelectorAll(query)).map(
-      (element) => new Selector(element, { url: this.url, adaptive: this.adaptive }),
+  css(query: string): SelectorCollection<Selector | TextSelection> {
+    const textMode = query.endsWith("::text");
+    const normalizedQuery = textMode ? query.slice(0, -6) : query;
+    validateCssQuery(normalizedQuery);
+    const matches = Array.from(this.#node.querySelectorAll(normalizedQuery));
+
+    if (textMode) {
+      return createCollection(matches.map((element) => new TextSelection(element.textContent ?? "")));
+    }
+
+    return createCollection(
+      matches.map((element) => new Selector(element, { url: this.url, adaptive: this.adaptive })),
     );
   }
 
-  xpath(query: string): Selector[] {
+  xpath(query: string): SelectorCollection<Selector> {
+    validateXPathQuery(query);
     const normalizedQuery = normalizeXPath(query);
     const nodes = evaluateXPathToNodes(normalizedQuery, this.#node);
 
-    return nodes
-      .filter((node): node is Element => isElementNode(node as Element))
-      .map((element) => createSelector(element, this));
+    return createCollection(
+      nodes
+        .filter((node): node is Element => isElementNode(node as Element))
+        .map((element) => createSelector(element, this)),
+    );
   }
 
   findByText(query: string, options: TextMatchOptions = {}): Selector | Selector[] | null {
@@ -320,6 +384,40 @@ export class Selector {
 
   hasClass(className: string): boolean {
     return isElementNode(this.#node) ? this.#node.classList.contains(className) : false;
+  }
+
+  get(): TextHandler {
+    return new TextHandler(this.getAllText());
+  }
+
+  re(pattern: RegExp | string): string[] {
+    return this.get().re(pattern);
+  }
+
+  reFirst(pattern: RegExp | string): string | null {
+    return this.get().reFirst(pattern);
+  }
+
+  re_first(pattern: RegExp | string): string | null {
+    return this.reFirst(pattern);
+  }
+
+  findSimilar(): SelectorCollection<Selector> {
+    if (!isElementNode(this.#node)) {
+      return createCollection([]);
+    }
+
+    const tagName = this.#node.tagName.toLowerCase();
+    const classSignature = getClassSignature(this.#node);
+    const candidates = Array.from(this.#document.querySelectorAll(tagName)).filter((element) => {
+      if (element === this.#node) {
+        return false;
+      }
+
+      return getClassSignature(element) === classSignature;
+    });
+
+    return createCollection(candidates.map((element) => createSelector(element, this)));
   }
 
   toString(): string {

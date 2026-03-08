@@ -10,6 +10,9 @@ importers:
 
   packages/core:
     dependencies:
+      css-what:
+        specifier: ^6.2.2
+        version: 6.2.2
       fontoxpath:
         specifier: ^3.34.0
         version: 3.34.0
