@@ -158,6 +158,24 @@ describe("parser advanced parity slice", () => {
     expect(String(cells[0]?.text)).toBe("Cell 1");
   });
 
+  test("keep_comments and keep_cdata control serialized output", () => {
+    const markup = `
+      <html>
+        <body>
+          <div>A<!-- Comment --><![CDATA[Some CDATA content]]>B</div>
+        </body>
+      </html>
+    `;
+
+    const kept = new Selector(markup, { keepComments: true, keepCdata: true });
+    const stripped = new Selector(markup, { keepComments: false, keepCdata: false });
+
+    expect(kept.body).toContain("Comment");
+    expect(kept.body).toContain("CDATA");
+    expect(stripped.htmlContent).not.toContain("Comment");
+    expect(stripped.htmlContent).not.toContain("CDATA");
+  });
+
   test("Selector generation getters return stable strings", () => {
     const page = new Selector(advancedHtml);
     const card = page.css(".child-card")[0];

@@ -122,6 +122,10 @@ class SelectorCollection<T> extends Array<T> {
 export interface SelectorOptions {
   url?: string;
   adaptive?: boolean;
+  keepComments?: boolean;
+  keep_comments?: boolean;
+  keepCdata?: boolean;
+  keep_cdata?: boolean;
 }
 
 function isElementNode(node: SelectorRoot): node is Element {
@@ -130,6 +134,37 @@ function isElementNode(node: SelectorRoot): node is Element {
 
 function normalizeWhitespace(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function shouldKeepComments(options: SelectorOptions): boolean {
+  return options.keepComments ?? options.keep_comments ?? false;
+}
+
+function shouldKeepCdata(options: SelectorOptions): boolean {
+  return options.keepCdata ?? options.keep_cdata ?? false;
+}
+
+function isCommentNode(node: Node): node is Comment {
+  return node.nodeType === 8;
+}
+
+function isCdataComment(node: Comment): boolean {
+  const content = node.textContent ?? "";
+  return content.startsWith("[CDATA[") && content.endsWith("]]");
+}
+
+function pruneSerializedNodes(node: Node, options: SelectorOptions): void {
+  for (const child of Array.from(node.childNodes)) {
+    if (isCommentNode(child)) {
+      const keepNode = isCdataComment(child) ? shouldKeepCdata(options) : shouldKeepComments(options);
+      if (!keepNode) {
+        child.remove();
+        continue;
+      }
+    }
+
+    pruneSerializedNodes(child, options);
+  }
 }
 
 function collectAllTextSegments(node: Node, options: GetAllTextOptions = {}): string[] {
@@ -160,8 +195,9 @@ function collectAllTextSegments(node: Node, options: GetAllTextOptions = {}): st
   return Array.from(node.childNodes).flatMap((child) => collectAllTextSegments(child, options));
 }
 
-function createDocumentFromHtml(html: string): Document {
+function createDocumentFromHtml(html: string, options: SelectorOptions = {}): Document {
   const { document } = parseHTML(html);
+  pruneSerializedNodes(document, options);
   return document;
 }
 
@@ -188,7 +224,12 @@ function collectDirectText(node: SelectorRoot): string {
 }
 
 function createSelector(node: Element, source: Selector): Selector {
-  return new Selector(node, { url: source.url, adaptive: source.adaptive });
+  return new Selector(node, {
+    url: source.url,
+    adaptive: source.adaptive,
+    keepComments: source.keepComments,
+    keepCdata: source.keepCdata,
+  });
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
@@ -276,12 +317,14 @@ function createCollection<T>(items: T[]): SelectorCollection<T> {
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
+  readonly keepComments: boolean;
+  readonly keepCdata: boolean;
   readonly #document: Document;
   readonly #node: SelectorRoot;
 
   constructor(input: string | SelectorRoot, options: SelectorOptions = {}) {
     if (typeof input === "string") {
-      const document = createDocumentFromHtml(input);
+      const document = createDocumentFromHtml(input, options);
       this.#document = document;
       this.#node = document;
     } else if (input != null && typeof input === "object" && "querySelectorAll" in input) {
@@ -293,6 +336,8 @@ export class Selector {
 
     this.url = options.url;
     this.adaptive = options.adaptive ?? false;
+    this.keepComments = shouldKeepComments(options);
+    this.keepCdata = shouldKeepCdata(options);
   }
 
   css(query: string): SelectorCollection<Selector | TextSelection> {
