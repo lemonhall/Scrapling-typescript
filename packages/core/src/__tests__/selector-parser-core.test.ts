@@ -69,6 +69,26 @@ describe("Selector parser-core slice", () => {
     expect(allStocks).toHaveLength(2);
   });
 
+  test("REQ-0001-004 支持基础 XPath 标签路径与谓词过滤", () => {
+    const page = new Selector(html);
+
+    const reviews = page.xpath('//section[@id="reviews"]//div[contains(@class, "review") and @data-rating >= 4]');
+
+    expect(reviews).toHaveLength(2);
+    expect(reviews[0]?.attributes["data-rating"]).toBe("5");
+  });
+
+  test("REQ-0001-004 支持带函数的 XPath 查询", () => {
+    const page = new Selector(html);
+
+    const highPricedProducts = page.xpath(
+      '//article[contains(@class, "product")][number(translate(substring-after(.//div[@class="stock"], "In stock: "), ",", "")) > 3]',
+    );
+
+    expect(highPricedProducts).toHaveLength(1);
+    expect(highPricedProducts[0]?.attributes["data-id"]).toBe("1");
+  });
+
   test("REQ-0001-004 支持父子兄弟与祖先导航", () => {
     const page = new Selector(html);
     const products = page.css("#products .product");

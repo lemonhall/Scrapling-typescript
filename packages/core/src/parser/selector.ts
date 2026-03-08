@@ -1,6 +1,9 @@
 import { parseHTML } from "linkedom";
+import fontoxpath from "fontoxpath";
 
 import { AttributesHandler, TextHandler } from "./handlers.js";
+
+const { evaluateXPathToNodes } = fontoxpath;
 
 type SelectorRoot = Document | Element;
 
@@ -73,6 +76,13 @@ function matchesText(value: string, query: string, options: TextMatchOptions): b
   return options.partial ? haystack.includes(needle) : haystack === needle;
 }
 
+function normalizeXPath(query: string): string {
+  return query.replace(
+    /(^|\.{0,1}\/{1,2}|::)([A-Za-z_][A-Za-z0-9_-]*)(?=(\[|\/{1,2}|$))/g,
+    (_, prefix: string, name: string) => `${prefix}*[local-name()="${name}"]`,
+  );
+}
+
 export class Selector {
   readonly url?: string;
   readonly adaptive: boolean;
@@ -97,6 +107,15 @@ export class Selector {
     return Array.from(this.#node.querySelectorAll(query)).map(
       (element) => new Selector(element, { url: this.url, adaptive: this.adaptive }),
     );
+  }
+
+  xpath(query: string): Selector[] {
+    const normalizedQuery = normalizeXPath(query);
+    const nodes = evaluateXPathToNodes(normalizedQuery, this.#node);
+
+    return nodes
+      .filter((node): node is Element => isElementNode(node as Element))
+      .map((element) => createSelector(element, this));
   }
 
   findByText(query: string, options: TextMatchOptions = {}): Selector | Selector[] | null {

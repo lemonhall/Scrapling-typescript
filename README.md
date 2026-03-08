@@ -27,9 +27,10 @@
 正在推进的第二个 slice：
 
 - `Selector` 的文本查找与正则查找
+- `Selector` 的 XPath 基线
 - 父子兄弟祖先导航
 - `TextHandler` 与 `AttributesHandler` 基线
-- XPath 仍在下一刀中
+- 更深层 parser parity 仍在继续推进中
 
 ## 关键文档
 
