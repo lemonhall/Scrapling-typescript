@@ -2,7 +2,7 @@ import { parseHTML } from "linkedom";
 import { parse as parseCssSelector } from "css-what";
 import fontoxpath from "fontoxpath";
 
-import { AttributesHandler, TextHandler } from "./handlers.js";
+import { AttributesHandler, TextHandler, TextHandlers } from "./handlers.js";
 
 const { evaluateXPathToNodes } = fontoxpath;
 
@@ -16,6 +16,7 @@ interface TextMatchOptions {
 
 interface RegexMatchOptions {
   firstMatch?: boolean;
+  caseSensitive?: boolean;
 }
 
 class TextSelection {
@@ -62,6 +63,42 @@ class SelectorCollection<T> extends Array<T> {
     }
 
     return undefined;
+  }
+
+  get(defaultValue?: TextHandler): TextHandler | undefined {
+    const first = this.first;
+    if (first == null) {
+      return defaultValue;
+    }
+
+    if (typeof first === "object" && first != null && "get" in first && typeof first.get === "function") {
+      const value = first.get();
+      return value instanceof TextHandler ? value : new TextHandler(String(value));
+    }
+
+    return new TextHandler(String(first));
+  }
+
+  getall(): TextHandlers {
+    return new TextHandlers(this.map((item) => {
+      if (typeof item === "object" && item != null && "get" in item && typeof item.get === "function") {
+        return String(item.get());
+      }
+
+      return String(item);
+    }));
+  }
+
+  getAll(): TextHandlers {
+    return this.getall();
+  }
+
+  extract(): TextHandlers {
+    return this.getall();
+  }
+
+  extract_first(defaultValue?: TextHandler): TextHandler | undefined {
+    return this.get(defaultValue);
   }
 
   override filter<S extends T>(predicate: (value: T, index: number, array: T[]) => value is S, thisArg?: unknown): SelectorCollection<S>;
@@ -238,10 +275,14 @@ export class Selector {
     return matches[0] ?? null;
   }
 
-  findByRegex(pattern: RegExp, options: RegexMatchOptions = {}): Selector | Selector[] | null {
+  findByRegex(pattern: RegExp | string, options: RegexMatchOptions = {}): Selector | Selector[] | null {
+    const regex = typeof pattern === "string"
+      ? new RegExp(pattern, options.caseSensitive === false ? "i" : "")
+      : pattern;
+
     const matches = getSearchPool(this.#node)
       .map((element) => createSelector(element, this))
-      .filter((selector) => pattern.test(String(selector.text)));
+      .filter((selector) => regex.test(String(selector.text)));
 
     if (options.firstMatch === false) {
       return matches;
@@ -341,6 +382,10 @@ export class Selector {
     return this.#node.tagName.toLowerCase();
   }
 
+  get generate_css_selector(): string {
+    return this.generateCssSelector;
+  }
+
   get generateFullCssSelector(): string {
     if (!isElementNode(this.#node)) {
       return "html";
@@ -364,6 +409,10 @@ export class Selector {
       .join(" > ");
   }
 
+  get generate_full_css_selector(): string {
+    return this.generateFullCssSelector;
+  }
+
   get generateXPathSelector(): string {
     if (!isElementNode(this.#node)) {
       return "/html";
@@ -382,6 +431,10 @@ export class Selector {
     return `//${this.#node.tagName.toLowerCase()}`;
   }
 
+  get generate_xpath_selector(): string {
+    return this.generateXPathSelector;
+  }
+
   get generateFullXPathSelector(): string {
     if (!isElementNode(this.#node)) {
       return "/html";
@@ -392,6 +445,10 @@ export class Selector {
     return chain
       .map((element) => `/${element.tagName.toLowerCase()}[${getNodeIndex(element)}]`)
       .join("");
+  }
+
+  get generate_full_xpath_selector(): string {
+    return this.generateFullXPathSelector;
   }
 
   get htmlContent(): string {
@@ -416,6 +473,10 @@ export class Selector {
 
   hasClass(className: string): boolean {
     return isElementNode(this.#node) ? this.#node.classList.contains(className) : false;
+  }
+
+  has_class(className: string): boolean {
+    return this.hasClass(className);
   }
 
   get(): TextHandler {
@@ -450,6 +511,18 @@ export class Selector {
     });
 
     return createCollection(candidates.map((element) => createSelector(element, this)));
+  }
+
+  find_similar(): SelectorCollection<Selector> {
+    return this.findSimilar();
+  }
+
+  find_by_text(query: string, options: TextMatchOptions = {}): Selector | Selector[] | null {
+    return this.findByText(query, options);
+  }
+
+  find_by_regex(pattern: RegExp | string, options: RegexMatchOptions = {}): Selector | Selector[] | null {
+    return this.findByRegex(pattern, options);
   }
 
   findAncestor(predicate: (node: Selector) => boolean): Selector | null {

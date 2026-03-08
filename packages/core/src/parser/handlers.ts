@@ -268,8 +268,16 @@ export class AttributesHandler {
       .map(([key, value]) => ({ [key]: value }));
   }
 
+  search_values(query: string, options: { partial?: boolean; caseSensitive?: boolean } = {}): Array<Record<string, string>> {
+    return this.searchValues(query, options);
+  }
+
   get jsonString(): Uint8Array {
     return new TextEncoder().encode(JSON.stringify(this.#values));
+  }
+
+  get json_string(): Uint8Array {
+    return this.jsonString;
   }
 
   toObject(): Readonly<Record<string, string>> {
