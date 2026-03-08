@@ -19,6 +19,15 @@ interface RegexMatchOptions {
   caseSensitive?: boolean;
 }
 
+interface GetAllTextOptions {
+  separator?: string;
+  strip?: boolean;
+  ignoreTags?: string[];
+  ignore_tags?: string[];
+  validValues?: boolean;
+  valid_values?: boolean;
+}
+
 class TextSelection {
   readonly #value: string;
 
@@ -119,6 +128,34 @@ function isElementNode(node: SelectorRoot): node is Element {
 
 function normalizeWhitespace(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function collectAllTextSegments(node: Node, options: GetAllTextOptions = {}): string[] {
+  if (node.nodeType === 3) {
+    const raw = node.textContent ?? "";
+    const value = options.strip ? raw.trim() : raw;
+
+    if ((options.validValues ?? options.valid_values ?? true) && value.trim().length === 0) {
+      return [];
+    }
+
+    return [value];
+  }
+
+  if (node.nodeType !== 1 && node.nodeType !== 9) {
+    return [];
+  }
+
+  if (node.nodeType === 1) {
+    const ignored = new Set([...(options.ignoreTags ?? []), ...(options.ignore_tags ?? [])].map((tag) => tag.toLowerCase()));
+    const element = node as Element;
+
+    if (ignored.has(element.tagName.toLowerCase())) {
+      return [];
+    }
+  }
+
+  return Array.from(node.childNodes).flatMap((child) => collectAllTextSegments(child, options));
 }
 
 function createDocumentFromHtml(html: string): Document {
@@ -349,6 +386,18 @@ export class Selector {
     return createSelector(this.#node.previousElementSibling, this);
   }
 
+  get siblings(): SelectorCollection<Selector> {
+    if (!isElementNode(this.#node) || this.#node.parentElement == null) {
+      return createCollection([]);
+    }
+
+    return createCollection(
+      Array.from(this.#node.parentElement.children)
+        .filter((element) => element !== this.#node)
+        .map((element) => createSelector(element, this)),
+    );
+  }
+
   get ancestors(): Selector[] {
     if (!isElementNode(this.#node)) {
       return [];
@@ -459,16 +508,29 @@ export class Selector {
     return this.#document.documentElement?.outerHTML ?? "";
   }
 
-  getAllText(): string {
-    if (isElementNode(this.#node)) {
-      return normalizeWhitespace(this.#node.textContent);
-    }
-
-    return normalizeWhitespace(this.#document.documentElement?.textContent);
+  get body(): string {
+    return this.#document.body?.outerHTML ?? "";
   }
 
-  get_all_text(): string {
-    return this.getAllText();
+  get path(): string {
+    return this.generateFullXPathSelector;
+  }
+
+  prettify(): string {
+    return this.htmlContent;
+  }
+
+  getAllText(options: GetAllTextOptions = {}): string {
+    const root = isElementNode(this.#node) ? this.#node : (this.#document.documentElement ?? this.#document);
+    const separator = options.separator ?? " ";
+    const values = collectAllTextSegments(root, options);
+    const text = values.join(separator);
+
+    return options.strip ? text.trim() : normalizeWhitespace(text);
+  }
+
+  get_all_text(options: GetAllTextOptions = {}): string {
+    return this.getAllText(options);
   }
 
   hasClass(className: string): boolean {
@@ -493,6 +555,14 @@ export class Selector {
 
   re_first(pattern: RegExp | string): string | null {
     return this.reFirst(pattern);
+  }
+
+  urljoin(input: string): string {
+    if (this.url == null) {
+      return input;
+    }
+
+    return new URL(input, this.url).toString();
   }
 
   findSimilar(): SelectorCollection<Selector> {
